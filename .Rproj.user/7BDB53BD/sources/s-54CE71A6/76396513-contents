@@ -1,0 +1,11 @@
+---
+title: Getting Started with R
+author: Pol Mayolas
+date: October 8th, 2019
+output:
+  html_document:
+    theme: united
+    highlight: tango
+---
+
+

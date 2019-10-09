@@ -1,0 +1,5 @@
+"0",""
+"0","cars2 <- cars[-which(cars$Distance == box$out) , ]"
+"0",""
+"0","boxplot(cars2$Distance)"
+"0",""
