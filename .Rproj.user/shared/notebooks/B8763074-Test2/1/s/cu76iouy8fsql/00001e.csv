@@ -1,1 +1,0 @@
-"0","ggplot(cars, aes(x = Speed, y = Distance)) + geom_point() + geom_smooth(method = ""lm"", se = F)"

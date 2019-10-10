@@ -1,0 +1,10 @@
+name: Publish Document
+title:
+username:
+account: rpubs
+server: rpubs.com
+hostUrl: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/537290/ad2a4b14eb5547a3b96093f0fc0aff53
+bundleId: https://api.rpubs.com/api/v1/document/537290/ad2a4b14eb5547a3b96093f0fc0aff53
+url: http://rpubs.com/polmayolas/537290
+when: 1570635150.29164

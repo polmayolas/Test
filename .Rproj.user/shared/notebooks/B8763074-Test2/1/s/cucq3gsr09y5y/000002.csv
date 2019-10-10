@@ -1,2 +1,0 @@
-"0","TestSetFinal <- cbind(testSet$Brand, testSet$Distance, PredictionCars)"
-"0","knitr::kable(TestSetFinal)"

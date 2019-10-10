@@ -1,7 +1,0 @@
-"0","box <- boxplot(cars$Distance)
-"
-"2","no non-missing arguments to min; returning Inf"
-"2","no non-missing arguments to max; returning -Inf"
-"2","Error in plot.window(xlim = xlim, ylim = ylim, log = log, yaxs = pars$yaxs) : 
-  need finite 'ylim' values
-"
