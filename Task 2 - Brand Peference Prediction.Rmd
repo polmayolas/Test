@@ -1,0 +1,292 @@
+---
+title: "Brand Preference Prediction"
+author: "Pol Mayolas"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r pressure, include=FALSE}
+# Libraries and Data Sets
+library(ggplot2)
+library(ggthemes)
+library(C50)
+library(plotly)
+library(caret)
+library(knitr)
+library(readr)
+library(corrplot)
+library(party)
+CompleteResponses <- read.csv("~/Desktop/UBIQUM/Data Analytics 2/Get Started with R/Task 2 - Data/CompleteResponses.csv")
+SurveyIncomplete <- read_csv("~/Desktop/UBIQUM/Data Analytics 2/Get Started with R/Task 2 - Data/SurveyIncomplete.csv")
+```
+
+# Executive Summary
+
+## Conclusions
+
+### Our customers prefer Sony
+
+Based on 10k survey responses of our customers in reference to their prefferred brand, we could predict with a 92% accuracy the preferenced brand of the 5k that didn't respond to that question.
+
+Then, after analysing the whole survey, we can coclude that our customers prefer Sony brand over Acer. Here are the results:
+
+- Sony: 9.212 named (61.8%)
+- Acer: 5.686 named (38.2%)
+
+```{r pressure, echo=}
+ggplot(FinalDataBase, aes(x = brand, fill = brand)) + geom_bar()
+```
+
+### Salary and Age
+
+This variables are the most important, at least using this survey to know the brand preference of our customers. So if we need more answers before we take a final decision, just knowing this 2 variables we could already predict our customers preference. 
+
+### Global partnership
+
+Good news are that the brand preference doesn't change too much between regions so there would be no problem doing a global partnership for the whole US as our customers in general prefer Sony in all 4 Regions.
+
+```{r pressure, echo=}
+ggplot(FinalDataBase, aes(x = age, y = salary, colour = brand)) + geom_point() + geom_smooth(model = "lm") + facet_grid(zipcode~.)
+```
+
+
+# How we predict the unanswered questions?
+
+We need to predict the answer of customers who didn't respond to the brand preference question. To do that we are going to clean and analyse both data sets, we are going to prepare data sets for training our predictive algorythms and then we are going to predict all answers.
+
+## Cleaning and Preprocessing Data
+
+First of all we need to clean all data sets and adapt all variables to our needs in order to analyse better the data and also make it more understandable for the company. So in both .csv docs we did the next changes:
+
+- Change variables from numeric to factor: elevel, car, zipcode and brand
+- Change numbers to same labels of the survey in all variables: elevel, car, brand and zipcode (in this case we also asigned every sub region to our 4 main regions in order to compare with other company data and get more useful insights)
+
+```{r pressure, eval=FALSE, include=FALSE}
+### CompleteResponses Data Set
+CompleteResponses$elevel <- as.factor(CompleteResponses$elevel)
+CompleteResponses$car <- as.factor(CompleteResponses$car)
+CompleteResponses$zipcode <- as.factor(CompleteResponses$zipcode)
+CompleteResponses$brand <- as.factor(CompleteResponses$brand)
+
+levels(CompleteResponses$elevel) <- c("Less than high school degree", "High school degree", "Some college", "4 year college degree", "Master's, doctoral or Professional degree")
+levels(CompleteResponses$car) <- c("Bmw", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge", "Ford", "Honda", "Hyundai", "Jeep", "Kia", "Lincoln", "Mazda", "Mercedes", "Mitsubishi", "Nissan", "Ram", "Subaru", "Toyota", "None")
+levels(CompleteResponses$zipcode) <- c("East", "East", "Central", "Central", "South", "South", "South", "West", "West")
+levels(CompleteResponses$brand) <- c("Acer", "Sony")
+CompleteResponses
+cut(CompleteResponses$salary, 5)
+cut(CompleteResponses$age, 5)
+cut(CompleteResponses$credit, 5)
+```
+
+```{r pressure, eval=FALSE, include=FALSE}
+## SurveyIncomplete Data Set
+SurveyIncomplete$elevel <- as.factor(SurveyIncomplete$elevel)
+SurveyIncomplete$car <- as.factor(SurveyIncomplete$car)
+SurveyIncomplete$zipcode <- as.factor(SurveyIncomplete$zipcode)
+SurveyIncomplete$brand <- as.factor(SurveyIncomplete$brand)
+
+levels(SurveyIncomplete$elevel) <- c("Less than high school degree", "High school degree", "Some college", "4 year college degree", "Master's, doctoral or Professional degree")
+levels(SurveyIncomplete$car) <- c("Bmw", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Dodge", "Ford", "Honda", "Hyundai", "Jeep", "Kia", "Lincoln", "Mazda", "Mercedes", "Mitsubishi", "Nissan", "Ram", "Subaru", "Toyota", "None")
+levels(SurveyIncomplete$zipcode) <- c("East", "East", "Central", "Central", "South", "South", "South", "West", "West")
+levels(SurveyIncomplete$brand) <- c("Acer", "Sony")
+
+cut(SurveyIncomplete$salary, 5)
+cut(SurveyIncomplete$age, 5)
+cut(SurveyIncomplete$credit, 5)
+```
+
+## Partition and creation of Data Sets
+
+We use the CompleteResponses.csv doc to train and test the algorythms that we are going to use after. We decided to split the doc using 75% of the data as training and the rest 25% as testing to see if the accuracy of our algorythm have the same quality with new data.
+
+```{r pressure, eval=FALSE, include=FALSE}
+CRTraining <- round(nrow(CompleteResponses)*0.75)
+print(CRTraining)
+CRTesting <- nrow(CompleteResponses)- CRTraining
+print(CRTesting)
+```
+
+```{r pressure, eval=FALSE, include=FALSE}
+set.seed(123)
+training_indices <- sample(seq_len(nrow(CompleteResponses)),size =CRTraining)
+print(training_indices)
+CRTraining <- CompleteResponses[training_indices, ]
+CRTesting <- CompleteResponses[-training_indices, ]
+```
+
+## Looking for the best predictive Algorythm
+
+After training and testing the Random Forest and C5.0 Algorythms we decided to pick C5.0 as the best for our final prediction. Here you have the detail why.
+
+### Using the Random Forest Model
+
+As Danielle asked we used the Random Forest Model to predict the answers. These are the results that we got:
+
+- Training Set: Accuracy (91.4%), Kappa (81.7%)
+- Testing Set: Accuracy (91.5%), Kappa (82.3%)
+
+```{r eval=FALSE, include=FALSE}
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 1)
+rfFit1 <- train(brand~., data = CRTraining, method = "rf", trControl=fitControl, tuneLength = 2)
+rfFit1
+```
+
+```{r pressure, eval=FALSE, include=FALSE}
+## Testing the Model
+RFPrediction <- predict(rfFit1, CRTesting)
+CRTesting$RandomForest <- RFPrediction
+table(CRTesting[,1],RFPrediction)
+```
+
+```{r pressure, eval=FALSE, include=FALSE}
+## Acuracy of the Algorythm with the Test Set
+confusionMatrix(data = RFPrediction, CRTesting$brand)
+```
+
+### Using the C5.0 Model
+
+We also used the C5.0 Model to predict the answers. We used 10 folders and try with 1 and 10 repeats. Using 10 repeats was the best option as we increased the accuracy and kappa. These are the results that we got:
+
+- Training Set: Accuracy (91.9%), Kappa (83%)
+- Testing Set: Accuracy (92%), Kappa (83%)
+
+```{r eval=FALSE, include=FALSE}
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+dtFit1 <- train(brand~., data = CRTraining, method = "C5.0", trControl=fitControl, tuneLength = 2)
+dtFit1
+varImp(dtFit1)
+plot(dtFit1)
+```
+
+```{r pressure, eval=FALSE, include=FALSE}
+## Testing the Model
+C5.0Prediction <- predict(dtFit1, CRTesting)
+CRTesting$DecisionTree <- C5.0Prediction
+table(CRTesting[,1],C5.0Prediction)
+```
+
+```{r pressure, eval=FALSE, include=FALSE}
+## Acuracy of the Algorythm with the Test Set
+confusionMatrix(data = C5.0Prediction, CRTesting$brand)
+```
+
+## Predicting the unanswered questions
+
+Using the C5.0 Algorythm we got our final prediction
+
+- Acer: 1942 responses
+- Sony: 3058 responses
+
+```{r pressure, eval=FALSE, include=FALSE}
+SurveyPrediction <- predict(dtFit1, SurveyIncomplete)
+SurveyIncomplete$brand <- SurveyPrediction
+SurveyIncomplete
+summary(SurveyIncomplete$brand)
+```
+
+```{r pressure, echo=}
+ggplot(SurveyIncomplete, aes(x = "", fill = brand)) + geom_bar() + coord_polar(theta = "y")
+```
+
+# Analysing Total Survey Results
+
+Once we have our prediction so all questions answered we need to mix both tables and analyse all data to see what pc brand is preferred for our customers and what insights we can bring to the company so we can chose Acer or Sony as a partner.
+
+```{r eval=FALSE, include=FALSE}
+## Mix Tables
+FinalDataBase <- rbind(CompleteResponses, SurveyIncomplete)
+```
+
+## Total Customer preferences
+
+In total, our customers prefer Sony brand over Acer. Sony was named in 61.8% of cases and Acer 38.2%.
+
+- Acer: 5686
+- Sony: 9212
+
+```{r echo=FALSE}
+ggplot(FinalDataBase, aes(x = "", fill = brand)) + geom_bar() + coord_polar(theta = "y")
+summary(FinalDataBase$brand)
+```
+
+```{r echo=FALSE}
+ggplot(FinalDataBase, aes(x = brand, fill = brand)) + geom_bar()
+```
+
+## Analysing the whole Customers Survey
+
+We found out, in that case, that there is only 2 variables needed to predict the brand preference. You can see it in this correlation matrix based on the CompleteResponses.csv document.
+
+```{r echo=FALSE}
+corrplot(CompleteResponses.cor)
+```
+
+That means that other variables doesn't have much impact on a customer to decide for one brand or another. So in this analysis we are going to talk mainly about salary and age that is where we can find more insight to take decisions.
+
+Here you can see an example of what we are saying. If we look at answers mixing age and salary based on Regions difference, we notice that there is not really a big difference of answers per Region.
+
+```{r echo=FALSE}
+ggplot(FinalDataBase, aes(x = age, y = salary, colour = brand)) + geom_point() + geom_smooth(model = "lm") + facet_grid(zipcode~.)
+```
+
+So just using age and salary variables we can get some insights.
+
+```{r echo=FALSE}
+ggplot(CompleteResponses, aes(x = age, y = salary, colour = brand)) + geom_point() + geom_smooth(model = "lm")
+```
+
+- Customers from 20 to 40 years old: the ones who prefer Acer have an avg salary of 75k and the ones that prefer Sony look like they are wealthier avg 90k.
+
+- Customers from 40 to 60 years old: the ones who prefer Acer have an avg salary of 100k and the ones that prefer Sony avg 80k. So here is the only range where Acer fans are wealthier than the Sony ones. Important to know as here is the range of our best customers.
+
+- Customers from 60 to 80 years old: the ones who prefer Acer have an avg salary of 100k and the ones that prefer Sony avg of 50k.
+
+
+Here we can see also the number of answers to preffered brand based on age.
+
+```{r echo=FALSE}
+ggplot(CompleteResponses, aes(x = age, fill = brand)) + geom_histogram(colour = "black")
+```
+
+And here the same but based on salary.
+
+```{r echo=FALSE}
+ggplot(CompleteResponses, aes(x = salary, fill = brand)) + geom_histogram(colour = "black")
+```
+
+Also customers who preffered Sony looks to be wealthier in general than the ones who picked Acer.
+
+```{r echo=FALSE}
+ggplot(CompleteResponses, aes(x = brand, y = salary, fill = brand)) + geom_boxplot() + stat_summary(fun.y = mean, colour = "black", geom = "text", vjust = -0.7, aes(label = round(..y.., digits = 1)))
+```
+
+
+
+
+```{r eval=FALSE, include=FALSE}
+## Other graphs
+ggplot(CompleteResponses, aes(x = salary, fill = brand)) + geom_histogram() + facet_grid(elevel~zipcode)
+
+ggplot(CompleteResponses, aes(x = salary, fill = brand)) + geom_histogram() + facet_grid(.~zipcode)
+```
+
+```{r eval=FALSE, include=FALSE}
+plot_ly(CompleteResponses, x = ~age, y = ~salary, color = ~brand)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+## Decision Tree
+DecisionTree <- ctree(brand~CompleteResponses$salary+CompleteResponses$age, data = CompleteResponses, controls = ctree_control(maxdepth = 2))
+DecisionTree
+
+plot(DecisionTree)
+
+DTPrediction <- predict(DecisionTree, CRTesting)
+DTPrediction
+table(DTPrediction)
+```
+
