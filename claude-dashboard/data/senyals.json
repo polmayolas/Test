@@ -1,0 +1,8 @@
+[
+  {"id": "mercat_2025", "valor": 34.8, "unitat": "bn $", "etiqueta": "Mida del mercat global de BI el 2025", "font": "Ken Research", "any": 2025},
+  {"id": "cagr", "valor": 8.4, "unitat": "%", "etiqueta": "Creixement anual del mercat de BI fins al 2031", "font": "Ken Research", "any": 2025},
+  {"id": "llm_selfservice", "valor": 60, "unitat": "%", "etiqueta": "Usuaris de self-service analytics que faran servir LLMs generalistes per a anàlisi ad hoc el 2028", "font": "Gartner, Predicts 2026", "any": 2025},
+  {"id": "mcp_fracas", "valor": 60, "unitat": "%", "etiqueta": "Projectes d'agentic analytics només amb MCP que fallaran per manca de capa semàntica", "font": "Gartner, Predicts 2026", "any": 2025},
+  {"id": "sql_cru", "valor": 64.5, "unitat": "%", "etiqueta": "Encert de text-to-SQL directe sobre l'esquema cru", "font": "dbt Labs, benchmark 2026", "any": 2026},
+  {"id": "sql_semantica", "valor": 98.2, "unitat": "%", "etiqueta": "Encert amb una capa semàntica modelada", "font": "dbt Labs, benchmark 2026", "any": 2026}
+]

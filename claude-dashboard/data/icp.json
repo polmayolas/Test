@@ -1,0 +1,9 @@
+[
+  {"segment": "Scale-ups B2B (SaaS, serveis) amb Snowflake o BigQuery", "encaix": 90, "mida": "50 a 300 persones", "per_que": "Ja tenen warehouse, poc equip de dades i molta demanda de preguntes ad hoc."},
+  {"segment": "Empreses que ja paguen Claude Team o Enterprise", "encaix": 85, "mida": "30 a 500 persones", "per_que": "L'eina ja és a casa; els falta la capa de dades i governança perquè les respostes siguin fiables."},
+  {"segment": "E-commerce i marques DTC", "encaix": 75, "mida": "20 a 200 persones", "per_que": "Dades a Shopify, GA4 i plataformes d'ads; cal centralitzar-les, però el retorn és ràpid i visible."},
+  {"segment": "Agències i consultores (partnership)", "encaix": 60, "mida": "10 a 100 persones", "per_que": "Volen oferir-ho als seus clients i no tenen l'expertesa de dades: canal de revenda o marca blanca."},
+  {"segment": "Pimes industrials i de distribució amb ERP i Excel", "encaix": 45, "mida": "50 a 500 persones", "per_que": "Gran dolor, però primer necessiten el warehouse; projecte més llarg i més venda consultiva."},
+  {"segment": "Corporacions amb Power BI governat", "encaix": 30, "mida": "Més de 1.000 persones", "per_que": "No substituiran Power BI; entrada possible com a capa de preguntes ad hoc al costat."},
+  {"segment": "Startups sense dades ni pressupost", "encaix": 20, "mida": "Menys de 20 persones", "per_que": "Poques dades i poc pressupost: millor contingut gratuït que servei."}
+]

@@ -1,0 +1,9 @@
+[
+  {"ordre": 1, "fase": "Diagnòstic i inventari de fonts", "setmana_inici": 0, "setmanes": 2, "entregables": "Mapa de fonts, objectius de l'empresa, KPIs prioritaris per departament"},
+  {"ordre": 2, "fase": "Plataforma de dades: warehouse i ingesta", "setmana_inici": 2, "setmanes": 4, "entregables": "Snowflake, BigQuery o Databricks; ingesta ELT (Fivetran, Airbyte); models de staging"},
+  {"ordre": 3, "fase": "Capa semàntica i diccionari de mètriques", "setmana_inici": 4, "setmanes": 4, "entregables": "Models dbt, mètriques certificades amb owner i tests de qualitat"},
+  {"ordre": 4, "fase": "Governança i accés per rols", "setmana_inici": 5, "setmanes": 3, "entregables": "Rols al warehouse, polítiques de files, vistes per departament"},
+  {"ordre": 5, "fase": "Dashboards per departament", "setmana_inici": 7, "setmanes": 4, "entregables": "Un dashboard nord d'empresa i un per departament, lligats als objectius"},
+  {"ordre": 6, "fase": "Preguntes de negoci i adopció", "setmana_inici": 10, "setmanes": 3, "entregables": "Playbook de preguntes, formació, champions per equip"},
+  {"ordre": 7, "fase": "Operació contínua", "setmana_inici": 13, "setmanes": 4, "entregables": "Monitoratge de qualitat, noves mètriques, revisió mensual amb direcció"}
+]

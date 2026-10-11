@@ -1,0 +1,619 @@
+<style>
+.cd { font-family: var(--font-anthropic-sans); color: var(--color-fg); font-size: var(--cds-font-size-body); }
+.cd-wrap { max-width: 72rem; margin-inline: auto; }
+.cd h1, .cd h2, .cd h3, .cd p, .cd ul { margin: 0; }
+.cd-head { display: grid; gap: var(--cds-gap-sm); margin-bottom: var(--cds-gap-lg); }
+.cd-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); line-height: 1.2; }
+.cd-lede { color: var(--color-fg-muted); max-width: 52rem; line-height: 1.5; }
+.cd-tabs { display: flex; gap: var(--cds-gap-xs); overflow-x: auto; border-bottom: 1px solid var(--color-border-line); margin-bottom: var(--cds-gap-lg); }
+.cd-tab { font: inherit; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--color-fg-muted); padding: var(--cds-pad-sm) var(--cds-pad-md); cursor: pointer; white-space: nowrap; }
+.cd-tab[aria-selected="true"] { color: var(--color-fg); border-bottom-color: var(--color-fg); }
+.cd-page { display: grid; gap: var(--cds-gap-lg); }
+.cd-page[hidden] { display: none; }
+.cd-section { display: grid; gap: var(--cds-gap-md); }
+.cd-h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.cd-grid { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+.cd-grid-3 { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.cd-card { position: relative; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); align-content: start; }
+.cd-card-title { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+.cd-note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); line-height: 1.45; }
+.cd-prose { line-height: 1.55; }
+.cd-prose ul { padding-left: 1.2rem; display: grid; gap: var(--cds-gap-xs); }
+.cd-prose .cd-strong { font-weight: var(--cds-font-weight-medium); }
+.cd-verdict { border-left: 3px solid var(--color-fg); }
+.cd-kpis { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+.cd-kpi-num { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.cd-kpi-num .cd-unit { font-size: var(--cds-font-size-heading); color: var(--color-fg-muted); margin-left: .2em; }
+.cd-chart { min-height: 8rem; }
+.cd-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.cd-legend span { display: inline-flex; align-items: center; gap: .4em; }
+.cd-sw { width: .65rem; height: .65rem; border-radius: 50%; display: inline-block; }
+.cd-r { padding: var(--cds-pad-xs) 0; display: grid; gap: .3rem; }
+.cd-r + .cd-r { border-top: 1px solid var(--cds-chart-grid); padding-top: var(--cds-pad-sm); }
+.cd-r-head { display: flex; justify-content: space-between; gap: var(--cds-gap-sm); align-items: baseline; }
+.cd-r-label { font-size: var(--cds-font-size-body); }
+.cd-r-val { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cd-r-track { position: relative; height: 1.1rem; }
+.cd-r-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--cds-chart-grid); }
+.cd-r-bar { position: absolute; top: .2rem; height: .7rem; border-radius: .35rem; min-width: .7rem; }
+.cd-r-line { position: absolute; top: calc(50% - 1px); height: 2px; background: var(--cds-chart-muted); }
+.cd-r-dot { position: absolute; top: calc(50% - .4rem); width: .8rem; height: .8rem; border-radius: 50%; transform: translateX(-50%); border: 2px solid var(--color-panel); box-sizing: border-box; }
+.cd-r-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.45; }
+.cd-axis { position: relative; height: 1.2rem; margin-top: var(--cds-gap-xs); border-top: 1px solid var(--cds-chart-axis); }
+.cd-axis span { position: absolute; top: .2rem; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); transform: translateX(-50%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cd-axis span.cd-first { transform: none; }
+.cd-axis span.cd-last { transform: translateX(-100%); }
+.cd-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); max-width: 16rem; display: grid; gap: .15rem; }
+.cd-tip[hidden] { display: none; }
+.cd-tip-head { color: var(--cds-text-secondary); }
+.cd-tip-line { display: flex; align-items: center; gap: .4em; font-variant-numeric: tabular-nums; }
+.cd-fail { display: flex; align-items: center; justify-content: center; gap: .5em; min-height: 8rem; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.cd-fail i { width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); display: inline-block; }
+[data-dash-source-state=empty] { color: transparent; }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+.cd-flow { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: stretch; }
+.cd-flow-step { flex: 1 1 9rem; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); display: grid; gap: .2rem; align-content: start; background: var(--color-bg); }
+.cd-flow-step.cd-accent { border-color: var(--color-fg); }
+.cd-flow-k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.cd-flow-arrow { align-self: center; color: var(--color-fg-muted); }
+.cd-tools { display: flex; gap: var(--cds-gap-sm); align-items: center; flex-wrap: wrap; }
+.cd-select { font: inherit; color: var(--color-fg); background: var(--color-bg); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-xs) var(--cds-pad-sm); }
+.cd-table-box { max-height: 28rem; overflow: auto; }
+.cd-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-body); }
+.cd-table th { position: sticky; top: 0; background: var(--color-panel); text-align: left; font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--cds-chart-axis); }
+.cd-table td { padding: var(--cds-pad-sm); border-bottom: 1px solid var(--cds-chart-grid); vertical-align: top; line-height: 1.45; }
+@media (max-width: 40rem) { .cd-hide-narrow { display: none; } }
+.cd-links { display: grid; gap: var(--cds-gap-xs); padding-left: 1.2rem; line-height: 1.5; }
+.cd-links a { color: var(--color-fg); }
+</style>
+
+<div class="cd"><div class="cd-wrap">
+  <header class="cd-head" id="inici">
+    <h1 class="cd-title">Claude Dashboards: mercat, viabilitat i GTM</h1>
+    <p class="cd-lede">Veredicte: Claude Dashboards no substituirà avui tot el BI d'una empresa, però sí la manera com la gent hi fa preguntes. El negoci durador és construir la capa de dades governada que hi ha a sota, i aquí el teu perfil de Power BI és un avantatge, no un llast.</p>
+  </header>
+
+  <nav class="cd-tabs" role="tablist" aria-label="Seccions">
+    <button class="cd-tab" role="tab" data-tab="veredicte" id="tab-veredicte">Veredicte i mercat</button>
+    <button class="cd-tab" role="tab" data-tab="viabilitat" id="tab-viabilitat">Viabilitat avui</button>
+    <button class="cd-tab" role="tab" data-tab="implementacio" id="tab-implementacio">Implementació</button>
+    <button class="cd-tab" role="tab" data-tab="gtm" id="tab-gtm">Go-to-market</button>
+    <button class="cd-tab" role="tab" data-tab="fonts" id="tab-fonts">Fonts</button>
+  </nav>
+
+  <!-- 1 · Veredicte i mercat -->
+  <section class="cd-page" id="veredicte" role="tabpanel" aria-labelledby="tab-veredicte">
+    <div class="cd-card cd-verdict cd-prose" id="resposta-curta">
+      <h2 class="cd-card-title">La resposta curta</h2>
+      <ul>
+        <li><span class="cd-strong">És el futur de la capa de consum del BI, no de tot el BI.</span> Preguntar en llenguatge natural i tenir un dashboard viu en minuts canviarà com la gent fa servir les dades. Els informes governats, regulats i de tancament seguiran un temps a les eines clàssiques.</li>
+        <li><span class="cd-strong">No abandonis Power BI: reorienta't.</span> El que val de veritat (modelar dades, definir mètriques, governar-les) és el mateix a Power BI que a Claude. Posiciona't com a especialista en la capa de dades per a l'era de la IA, agnòstic d'eina.</li>
+        <li><span class="cd-strong">La finestra d'oportunitat és ara.</span> El producte acaba de sortir en beta: hi ha molt interès i molt poca gent que sàpiga implementar-lo bé. Qui tingui casos reals els propers mesos serà la referència.</li>
+      </ul>
+    </div>
+
+    <div class="cd-section" id="que-es">
+      <h2 class="cd-h2">Què és cada cosa</h2>
+      <div class="cd-grid-3">
+        <div class="cd-card cd-prose">
+          <h3 class="cd-card-title">Claude Design</h3>
+          <p class="cd-note">Anthropic Labs, abril de 2026</p>
+          <p>Eina per crear prototips, presentacions, one-pagers i visuals a partir d'una descripció, aplicant el sistema de disseny de l'empresa. Serveix per dissenyar, no per analitzar dades: útil per fer maquetes de dashboards, no per fer-los funcionar.</p>
+        </div>
+        <div class="cd-card cd-prose cd-verdict">
+          <h3 class="cd-card-title">Claude Dashboards</h3>
+          <p class="cd-note">Beta des del 8 d'octubre de 2026, plans de pagament</p>
+          <p>Dashboards vius sobre el teu warehouse (Redshift, BigQuery, ClickHouse, Databricks, Snowflake) i connectors com Salesforce. Claude escriu el SQL, cada número mostra la consulta que el genera i les dades es refresquen soles. És el producte rellevant per al BI. Aquest mateix dashboard n'és un.</p>
+        </div>
+        <div class="cd-card cd-prose">
+          <h3 class="cd-card-title">El que no és (encara)</h3>
+          <p class="cd-note">Segons el mateix posicionament d'Anthropic</p>
+          <p>No és una plataforma de BI governada: no té un model semàntic propi consolidat ni seguretat per files pròpia. Anthropic el situa al costat de les eines de BI, per a preguntes ràpides i exploratòries, amb exportació a Hex, Sigma, Omni i altres.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cd-section" id="xifres">
+      <h2 class="cd-h2">El mercat en quatre xifres</h2>
+      <div class="cd-kpis">
+        <div class="cd-card">
+          <p class="cd-note">Mercat global de BI, 2025</p>
+          <p class="cd-kpi-num"><span class="dash-skeleton" data-source="senyals" data-field="valor" data-where="id=mercat_2025" data-k="mercat_2025">—</span><span class="cd-unit">bn $</span></p>
+          <p class="cd-note">Ken Research. Altres fonts el situen entre 27 i 35 bn $.</p>
+        </div>
+        <div class="cd-card">
+          <p class="cd-note">Creixement anual fins al 2031</p>
+          <p class="cd-kpi-num"><span class="dash-skeleton" data-source="senyals" data-field="valor" data-where="id=cagr" data-k="cagr">—</span><span class="cd-unit">%</span></p>
+          <p class="cd-note">Mercat madur que creix, no que desapareix.</p>
+        </div>
+        <div class="cd-card">
+          <p class="cd-note">Usuaris de self-service amb LLMs, 2028</p>
+          <p class="cd-kpi-num"><span class="dash-skeleton" data-source="senyals" data-field="valor" data-where="id=llm_selfservice" data-k="llm_selfservice">—</span><span class="cd-unit">%</span></p>
+          <p class="cd-note">Gartner: l'anàlisi ad hoc es mou als LLMs; el reporting de producció es queda al BI.</p>
+        </div>
+        <div class="cd-card">
+          <p class="cd-note">Projectes només amb MCP que fallaran</p>
+          <p class="cd-kpi-num"><span class="dash-skeleton" data-source="senyals" data-field="valor" data-where="id=mcp_fracas" data-k="mcp_fracas">—</span><span class="cd-unit">%</span></p>
+          <p class="cd-note">Gartner: per manca d'una capa semàntica consistent. Aquí és on entres tu.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cd-grid">
+      <div class="cd-card" id="card-mercat">
+        <h2 class="cd-card-title">Mida del mercat de BI segons cada font</h2>
+        <p class="cd-note">Del valor inicial al previst, en milers de milions de dòlars. Les fonts defineixen el mercat diferent; la tendència coincideix.</p>
+        <div class="cd-chart dash-skeleton" id="chart-mercat" data-source="mercat_bi"></div>
+      </div>
+      <div class="cd-card" id="card-precisio">
+        <h2 class="cd-card-title">La capa semàntica és el que fa fiable la IA</h2>
+        <p class="cd-note">Encert responent preguntes de negoci, sense i amb capa semàntica (benchmark de dbt Labs, 2026). Millora del millor resultat: <b class="cd-gain dash-skeleton" data-source="millora_semantica">—</b> punts.</p>
+        <div class="cd-legend"><span><i class="cd-sw" style="background: var(--cds-chart-muted)"></i>Sense capa semàntica</span><span><i class="cd-sw cd-sw-0"></i>Amb capa semàntica</span></div>
+        <div class="cd-chart dash-skeleton" id="chart-precisio" data-source="precisio_ia"></div>
+      </div>
+    </div>
+
+    <div class="cd-card cd-prose" id="escenaris">
+      <h2 class="cd-card-title">Com evolucionarà el mercat</h2>
+      <ul>
+        <li><span class="cd-strong">2026 i 2027, coexistència.</span> Les empreses proven Claude, Copilot i agents de dades per a preguntes ad hoc mentre Power BI i Tableau mantenen el reporting oficial. Demanda: pilots i formació.</li>
+        <li><span class="cd-strong">2027 i 2028, la capa de preguntes s'imposa.</span> Els dashboards poc usats es substitueixen per preguntes i dashboards generats. Qui no tingui mètriques certificades veurà números contradictoris. Demanda: capa semàntica i governança.</li>
+        <li><span class="cd-strong">Des del 2028, BI és dades governades més agents.</span> L'eina de visualització es torna intercanviable; el valor és el model de dades, les definicions i els permisos. Demanda: arquitectes de dades i partners recurrents.</li>
+      </ul>
+      <p class="cd-note">Escenaris propis a partir de les prediccions de Gartner i del posicionament dels fabricants. No són previsions quantificades.</p>
+    </div>
+  </section>
+
+  <!-- 2 · Viabilitat -->
+  <section class="cd-page" id="viabilitat" role="tabpanel" aria-labelledby="tab-viabilitat" hidden>
+    <div class="cd-card cd-verdict cd-prose" id="viabilitat-resum">
+      <h2 class="cd-card-title">Tot el BI a Claude Dashboards, avui? No. Bona part? Sí.</h2>
+      <p>És realista portar-hi la capa de preguntes i els dashboards operatius de cada departament, sempre que a sota hi hagi un warehouse amb mètriques certificades i permisos ben definits. No és realista, encara, moure-hi els informes regulats, els tancaments financers o les empreses sense warehouse.</p>
+    </div>
+
+    <div class="cd-card" id="card-capacitats">
+      <h2 class="cd-card-title">Power BI vs Claude Dashboards, capacitat per capacitat</h2>
+      <p class="cd-note">Valoració pròpia de 0 a 5 a octubre de 2026. Claude guanya en velocitat i preguntes; Power BI, en governança i maduresa.</p>
+      <div class="cd-legend"><span><i class="cd-sw cd-sw-0"></i>Claude Dashboards</span><span><i class="cd-sw cd-sw-1"></i>Power BI</span></div>
+      <div class="cd-chart dash-skeleton" id="chart-capacitats" data-source="capacitats"></div>
+    </div>
+
+    <div class="cd-grid">
+      <div class="cd-card cd-prose" id="avui-si">
+        <h2 class="cd-card-title">Pot passar a Claude avui</h2>
+        <ul>
+          <li>Preguntes de negoci del dia a dia de qualsevol departament.</li>
+          <li>Dashboards operatius per equip, sobre vistes certificades.</li>
+          <li>Exploració ràpida abans de decidir què es converteix en informe oficial.</li>
+          <li>Dashboards de direcció lligats als objectius, si les mètriques ja estan centralitzades.</li>
+        </ul>
+      </div>
+      <div class="cd-card cd-prose" id="avui-no">
+        <h2 class="cd-card-title">Millor esperar o mantenir-ho al BI clàssic</h2>
+        <ul>
+          <li>Informes regulats, a consell o amb format fix.</li>
+          <li>Tancaments comptables i conciliacions.</li>
+          <li>Empreses sense warehouse al núvol: primer cal construir-lo.</li>
+          <li>Organitzacions que depenen de Power BI integrat a Microsoft 365.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="cd-card" id="card-reptes">
+      <h2 class="cd-card-title">Els reptes d'implementació i com resoldre'ls</h2>
+      <p class="cd-note">Severitat de 1 a 5, valoració pròpia. Els dos primers decideixen l'èxit del projecte.</p>
+      <div class="cd-chart dash-skeleton" id="chart-reptes" data-source="reptes"></div>
+    </div>
+  </section>
+
+  <!-- 3 · Implementació -->
+  <section class="cd-page" id="implementacio" role="tabpanel" aria-labelledby="tab-implementacio" hidden>
+    <div class="cd-card" id="arquitectura">
+      <h2 class="cd-card-title">L'arquitectura objectiu</h2>
+      <p class="cd-note">Una sola font de veritat. Les eines de consum s'hi connecten totes, i les mètriques es calculen un sol cop.</p>
+      <div class="cd-flow">
+        <div class="cd-flow-step"><span class="cd-flow-k">Fonts</span><span>ERP, CRM, e-commerce, ads, Excel</span></div>
+        <span class="cd-flow-arrow" aria-hidden="true">→</span>
+        <div class="cd-flow-step"><span class="cd-flow-k">Ingesta</span><span>Fivetran, Airbyte o scripts ELT</span></div>
+        <span class="cd-flow-arrow" aria-hidden="true">→</span>
+        <div class="cd-flow-step"><span class="cd-flow-k">Warehouse</span><span>Snowflake, BigQuery o Databricks</span></div>
+        <span class="cd-flow-arrow" aria-hidden="true">→</span>
+        <div class="cd-flow-step cd-accent"><span class="cd-flow-k">Capa semàntica i governança</span><span>Mètriques certificades, owners, rols i permisos per files</span></div>
+        <span class="cd-flow-arrow" aria-hidden="true">→</span>
+        <div class="cd-flow-step"><span class="cd-flow-k">Consum</span><span>Claude Dashboards i preguntes; Power BI per a l'oficial</span></div>
+      </div>
+      <p class="cd-note">Cada lector d'un Claude Dashboard consulta el warehouse amb els seus propis permisos. Per això l'accés limitat per rols es defineix al warehouse, no al dashboard.</p>
+    </div>
+
+    <div class="cd-card" id="card-fases">
+      <h2 class="cd-card-title">Fases d'una implementació completa</h2>
+      <p class="cd-note">Setmanes des de l'inici, per a una empresa d'entre 50 i 300 persones. Estimació pròpia; les fases se solapen.</p>
+      <div class="cd-chart dash-skeleton" id="chart-fases" data-source="fases"></div>
+    </div>
+
+    <div class="cd-card" id="card-metriques">
+      <h2 class="cd-card-title">Diccionari de mètriques per departament</h2>
+      <p class="cd-note">Punt de partida per centralitzar el càlcul: cada mètrica té una definició i un owner, i es calcula un sol cop a la capa semàntica.</p>
+      <div class="cd-tools">
+        <label class="cd-note" for="cd-dept">Departament</label>
+        <select class="cd-select" id="cd-dept" data-source="metriques"></select>
+      </div>
+      <div class="cd-table-box">
+        <table class="cd-table dash-skeleton" id="taula-metriques" data-source="metriques" data-row-key="metrica">
+          <thead><tr>
+            <th data-field="metrica">Mètrica</th>
+            <th data-field="departament">Departament</th>
+            <th data-field="definicio">Definició</th>
+            <th data-field="owner" class="cd-hide-narrow">Owner</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · GTM -->
+  <section class="cd-page" id="gtm" role="tabpanel" aria-labelledby="tab-gtm" hidden>
+    <div class="cd-card cd-verdict cd-prose" id="perfil">
+      <h2 class="cd-card-title">On encaixa el teu perfil</h2>
+      <p>Partint d'un perfil de consultor o analista de Power BI:</p>
+      <ul>
+        <li><span class="cd-strong">Avantatges:</span> saps modelar dades, escriure mesures (DAX és una capa semàntica), parlar amb negoci i traduir objectius en KPIs. És exactament el que falta en els projectes d'IA sobre dades.</li>
+        <li><span class="cd-strong">Buits a tancar:</span> SQL avançat, un warehouse al núvol (BigQuery o Snowflake), dbt per a la capa semàntica, i ús avançat de Claude i connectors.</li>
+        <li><span class="cd-strong">Posicionament proposat:</span> «T'ajudo a tenir una sola versió de la veritat perquè la teva empresa pugui preguntar a la IA i fiar-se de la resposta.» Ven el resultat, no l'eina.</li>
+      </ul>
+    </div>
+
+    <div class="cd-card" id="card-icp">
+      <h2 class="cd-card-title">A qui vendre-ho primer</h2>
+      <p class="cd-note">Encaix de 0 a 100, valoració pròpia: warehouse existent, dolor amb les dades, pressupost i rapidesa de decisió.</p>
+      <div class="cd-chart dash-skeleton" id="chart-icp" data-source="icp"></div>
+    </div>
+
+    <div class="cd-card" id="card-oferta">
+      <h2 class="cd-card-title">Escala de serveis i preus orientatius</h2>
+      <p class="cd-note">Rang en euros, escala logarítmica. Hipòtesis per validar amb els primers clients; el retainer és mensual i el workshop, per sessió.</p>
+      <div class="cd-chart dash-skeleton" id="chart-oferta" data-source="oferta"></div>
+    </div>
+
+    <div class="cd-card" id="card-pla">
+      <h2 class="cd-card-title">Pla de 90 dies</h2>
+      <p class="cd-note">Setmanes des d'avui. L'objectiu: dos pilots i un cas d'èxit abans que el mercat s'ompli.</p>
+      <div class="cd-chart dash-skeleton" id="chart-pla" data-source="pla90"></div>
+    </div>
+
+    <div class="cd-card cd-prose" id="missatge">
+      <h2 class="cd-card-title">Missatge comercial</h2>
+      <ul>
+        <li><span class="cd-strong">Dolor:</span> «Cada departament té els seus números, ningú es fia dels dashboards i l'equip de dades no dona l'abast amb les preguntes.»</li>
+        <li><span class="cd-strong">Promesa:</span> «En quatre setmanes, un departament fent preguntes a Claude sobre mètriques certificades, amb el SQL visible darrere de cada número.»</li>
+        <li><span class="cd-strong">Prova:</span> una demo amb dades del sector del client i, quan el tinguis, el primer cas d'èxit.</li>
+        <li><span class="cd-strong">Porta d'entrada:</span> el diagnòstic, de preu baix i entregable clar, que porta al pilot i al retainer.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5 · Fonts -->
+  <section class="cd-page" id="fonts" role="tabpanel" aria-labelledby="tab-fonts" hidden>
+    <div class="cd-card cd-prose" id="llista-fonts">
+      <h2 class="cd-card-title">Fonts consultades</h2>
+      <p class="cd-note">Recerca feta l'11 d'octubre de 2026, tres dies després del llançament de Claude Dashboards. Bona part de la cobertura és secundària; les xifres de Gartner i dbt provenen de resums i convé verificar-les a la font original.</p>
+      <ul class="cd-links">
+        <li><a href="https://claude.com/resources/articles/dashboards-and-motion" target="_blank" rel="noopener">Anthropic: Build live dashboards and animate explainers with Claude</a></li>
+        <li><a href="https://techcrunch.com/2026/04/17/anthropic-launches-claude-design-a-new-product-for-creating-quick-visuals/" target="_blank" rel="noopener">TechCrunch: Anthropic launches Claude Design</a></li>
+        <li><a href="https://www.unite.ai/anthropic-launches-claude-dashboards-and-motion-takes-docs-out-of-beta/" target="_blank" rel="noopener">Unite.AI: Claude Dashboards and Motion</a></li>
+        <li><a href="https://the-decoder.com/claude-can-now-generate-animated-explainer-videos-and-live-data-dashboards-from-text-prompts/" target="_blank" rel="noopener">The Decoder: live data dashboards from text prompts</a></li>
+        <li><a href="https://thedatavist.substack.com/p/claude-dashboards-and-the-shift-from" target="_blank" rel="noopener">The Datavist: from chart builder to chart specifier</a></li>
+        <li><a href="https://www.eesel.ai/blog/claude-dashboards-alternatives" target="_blank" rel="noopener">eesel: Claude Dashboards alternatives</a></li>
+        <li><a href="https://www.cdata.com/resources/predicts-2026-ai-agents-mcp-governance-transforming-analytics" target="_blank" rel="noopener">Gartner Predicts 2026: AI agents, MCP and governance (via CData)</a></li>
+        <li><a href="https://docs.getdbt.com/blog/semantic-layer-vs-text-to-sql-2026?version=2" target="_blank" rel="noopener">dbt Labs: semantic layer vs text-to-SQL 2026</a></li>
+        <li><a href="https://www.kenresearch.com/global-business-intelligence-market" target="_blank" rel="noopener">Ken Research: global BI market</a></li>
+        <li><a href="https://meticulousresearch.com/pressrelease/640/business-intelligence-market" target="_blank" rel="noopener">Meticulous Research: BI market</a></li>
+        <li><a href="https://pixelplex.io/blog/business-intelligence-bi-statistics/" target="_blank" rel="noopener">PixelPlex: BI statistics (cita Fortune Business Insights)</a></li>
+        <li><a href="https://www.cxtoday.com/customer-data-platform/gartner-magic-quadrant-for-analytics-and-business-intelligence-abi-platforms-2025-the-rundown/" target="_blank" rel="noopener">CX Today: Gartner Magic Quadrant ABI 2025</a></li>
+      </ul>
+    </div>
+  </section>
+</div></div>
+
+<script>
+(() => {
+  const f1 = d3.format('~f');
+  const fEur = (v) => d3.format(',')(v).replace(/,/g, '.') + ' €';
+  const fEurShort = (v) => (v >= 1000 ? d3.format('~f')(v / 1000) + 'k' : String(v)) + ' €';
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const color = (i) => dash.colors[i % dash.colors.length];
+  document.querySelectorAll('.cd-sw-0').forEach((s) => { s.style.background = color(0); });
+  document.querySelectorAll('.cd-sw-1').forEach((s) => { s.style.background = color(1); });
+
+  // Shared tooltip, one per card, kept inside the card.
+  const tip = (card) => {
+    let t = card.querySelector(':scope > .cd-tip');
+    if (!t) { t = el('div', 'cd-tip'); t.hidden = true; card.append(t); }
+    return t;
+  };
+  const showTip = (card, evt, head, lines) => {
+    const t = tip(card);
+    t.replaceChildren(el('div', 'cd-tip-head', head));
+    lines.forEach((l) => {
+      const line = el('div', 'cd-tip-line');
+      if (l.color) { const sw = el('i', 'cd-sw'); sw.style.background = l.color; line.append(sw); }
+      line.append(document.createTextNode(l.text));
+      t.append(line);
+    });
+    t.hidden = false;
+    const box = card.getBoundingClientRect();
+    const w = t.offsetWidth, h = t.offsetHeight;
+    let x = evt.clientX - box.left + 12, y = evt.clientY - box.top - h - 8;
+    if (x + w > box.width - 4) x = Math.max(4, evt.clientX - box.left - w - 12);
+    if (y < 4) y = evt.clientY - box.top + 16;
+    t.style.left = x + 'px'; t.style.top = y + 'px';
+  };
+  const hideTip = (card) => { const t = card.querySelector(':scope > .cd-tip'); if (t) t.hidden = true; };
+
+  // Returns the rows when ready; otherwise draws the loading or failed state.
+  const ready = (box, id) => {
+    const d = dash.data(id);
+    if (d.status === 'ok') { box.classList.remove('dash-skeleton'); return d.data; }
+    box.replaceChildren();
+    if (d.status === 'loading') { box.classList.add('dash-skeleton'); return null; }
+    box.classList.remove('dash-skeleton');
+    const f = el('div', 'cd-fail'); f.append(el('i'), document.createTextNode('No s’ha pogut carregar'));
+    box.append(f);
+    return null;
+  };
+
+  // Horizontal row chart in HTML: a label above each track, bars (range) or dots (series).
+  const rowChart = (box, cfg) => {
+    const card = box.closest('.cd-card');
+    box.replaceChildren();
+    const x = (cfg.log ? d3.scaleLog() : d3.scaleLinear()).domain(cfg.domain).range([0, 100]).clamp(true);
+    cfg.rows.forEach((r) => {
+      const row = el('div', 'cd-r');
+      const head = el('div', 'cd-r-head');
+      head.append(el('span', 'cd-r-label', cfg.label(r)));
+      if (cfg.valueText) head.append(el('span', 'cd-r-val', cfg.valueText(r)));
+      const track = el('div', 'cd-r-track');
+      (cfg.ticks || []).forEach((t) => { const g = el('div', 'cd-r-grid'); g.style.left = x(t) + '%'; track.append(g); });
+      if (cfg.range) {
+        const from = cfg.range.from(r), to = cfg.range.to(r), c = cfg.range.color(r);
+        if (from == null) {
+          const dot = el('div', 'cd-r-dot'); dot.style.left = x(to) + '%'; dot.style.background = c; track.append(dot);
+        } else {
+          const bar = el('div', 'cd-r-bar');
+          bar.style.left = x(from) + '%'; bar.style.width = Math.max(0, x(to) - x(from)) + '%'; bar.style.background = c;
+          track.append(bar);
+        }
+      }
+      if (cfg.series) {
+        const vals = cfg.series.map((s) => s.value(r));
+        const lo = Math.min(...vals), hi = Math.max(...vals);
+        const line = el('div', 'cd-r-line'); line.style.left = x(lo) + '%'; line.style.width = (x(hi) - x(lo)) + '%'; track.append(line);
+        cfg.series.forEach((s, i) => { const dot = el('div', 'cd-r-dot'); dot.style.left = x(vals[i]) + '%'; dot.style.background = s.color; track.append(dot); });
+      }
+      if (cfg.tip) {
+        track.addEventListener('pointermove', (e) => showTip(card, e, cfg.label(r), cfg.tip(r)));
+        track.addEventListener('pointerleave', () => hideTip(card));
+      }
+      row.append(head, track);
+      if (cfg.sub) row.append(el('div', 'cd-r-sub', cfg.sub(r)));
+      box.append(row);
+    });
+    if (cfg.ticks) {
+      const axis = el('div', 'cd-axis');
+      cfg.ticks.forEach((t, i) => {
+        const s = el('span', i === 0 ? 'cd-first' : i === cfg.ticks.length - 1 ? 'cd-last' : '', cfg.tickFmt ? cfg.tickFmt(t) : f1(t));
+        s.style.left = x(t) + '%';
+        axis.append(s);
+      });
+      box.append(axis);
+    }
+  };
+
+  dash.calc('millora_semantica', {
+    title: 'Millora amb capa semàntica',
+    description: 'Punts d’encert guanyats pel millor resultat amb capa semàntica respecte del text-to-SQL directe.',
+    inputs: ['senyals'],
+    fn: (senyals) => {
+      const v = (id) => Number(senyals.find((r) => r.id === id).valor);
+      return Math.round((v('sql_semantica') - v('sql_cru')) * 10) / 10;
+    },
+  });
+
+  // ---- Page 1
+  const drawVeredicte = () => {
+    const s = dash.data('senyals');
+    document.querySelectorAll('[data-k]').forEach((n) => {
+      if (s.status === 'ok') {
+        const r = s.data.find((x) => x.id === n.dataset.k);
+        n.classList.remove('dash-skeleton');
+        n.textContent = r ? f1(Number(r.valor)) : '—';
+      } else {
+        n.classList.toggle('dash-skeleton', s.status === 'loading');
+        n.textContent = '—';
+      }
+    });
+    const g = dash.data('millora_semantica');
+    const gain = document.querySelector('.cd-gain');
+    gain.classList.toggle('dash-skeleton', g.status === 'loading');
+    gain.textContent = g.status === 'ok' ? f1(Number(g.data)) : '—';
+
+    const m = document.getElementById('chart-mercat');
+    const mr = ready(m, 'mercat_bi');
+    if (mr) {
+      const rows = mr.map((r) => ({ ...r, valor_base: r.valor_base == null ? null : Number(r.valor_base), valor_obj: Number(r.valor_obj), cagr: Number(r.cagr) }))
+        .sort((a, b) => b.valor_obj - a.valor_obj);
+      rowChart(m, {
+        rows, domain: [0, 65], ticks: [0, 20, 40, 60], tickFmt: (t) => t + ' bn $',
+        label: (r) => r.font,
+        valueText: (r) => (r.valor_base == null ? '' : f1(r.valor_base) + ' → ') + f1(r.valor_obj) + ' bn $',
+        sub: (r) => (r.valor_base == null ? 'Previsió ' + r.any_obj : r.any_base + ' → ' + r.any_obj) + ' · creixement anual ' + f1(r.cagr) + '%',
+        range: { from: (r) => r.valor_base, to: (r) => r.valor_obj, color: () => color(0) },
+        tip: (r) => [
+          ...(r.valor_base == null ? [] : [{ text: r.any_base + ': ' + f1(r.valor_base) + ' bn $' }]),
+          { text: r.any_obj + ': ' + f1(r.valor_obj) + ' bn $' },
+          { text: 'Creixement anual: ' + f1(r.cagr) + '%' },
+        ],
+      });
+    }
+
+    const p = document.getElementById('chart-precisio');
+    const pr = ready(p, 'precisio_ia');
+    if (pr) {
+      const muted = 'var(--cds-chart-muted)';
+      rowChart(p, {
+        rows: pr.map((r) => ({ ...r, sense_semantica: Number(r.sense_semantica), amb_semantica: Number(r.amb_semantica) })),
+        domain: [50, 100], ticks: [50, 75, 100], tickFmt: (t) => t + '%',
+        label: (r) => r.cas,
+        valueText: (r) => f1(r.sense_semantica) + '% → ' + f1(r.amb_semantica) + '%',
+        series: [
+          { value: (r) => r.sense_semantica, color: muted },
+          { value: (r) => r.amb_semantica, color: color(0) },
+        ],
+        tip: (r) => [
+          { color: muted, text: 'Sense capa semàntica: ' + f1(r.sense_semantica) + '%' },
+          { color: color(0), text: 'Amb capa semàntica: ' + f1(r.amb_semantica) + '%' },
+        ],
+      });
+    }
+  };
+
+  // ---- Page 2
+  const drawViabilitat = () => {
+    const c = document.getElementById('chart-capacitats');
+    const cr = ready(c, 'capacitats');
+    if (cr) {
+      rowChart(c, {
+        rows: cr.map((r) => ({ ...r, claude: Number(r.claude), power_bi: Number(r.power_bi) })),
+        domain: [0, 5], ticks: [0, 1, 2, 3, 4, 5],
+        label: (r) => r.capacitat,
+        valueText: (r) => 'Claude ' + r.claude + ' · Power BI ' + r.power_bi,
+        sub: (r) => r.nota,
+        series: [
+          { value: (r) => r.power_bi, color: color(1) },
+          { value: (r) => r.claude, color: color(0) },
+        ],
+        tip: (r) => [
+          { color: color(0), text: 'Claude Dashboards: ' + r.claude + ' de 5' },
+          { color: color(1), text: 'Power BI: ' + r.power_bi + ' de 5' },
+        ],
+      });
+    }
+    const rp = document.getElementById('chart-reptes');
+    const rr = ready(rp, 'reptes');
+    if (rr) {
+      rowChart(rp, {
+        rows: rr.map((r) => ({ ...r, severitat: Number(r.severitat) })).sort((a, b) => b.severitat - a.severitat),
+        domain: [0, 5], ticks: [0, 1, 2, 3, 4, 5],
+        label: (r) => r.repte,
+        valueText: (r) => 'Severitat ' + r.severitat,
+        sub: (r) => 'Com resoldre-ho: ' + r.mitigacio,
+        range: { from: () => 0, to: (r) => r.severitat, color: (r) => (r.severitat >= 5 ? color(0) : 'var(--cds-chart-muted)') },
+        tip: (r) => [{ text: 'Severitat: ' + r.severitat + ' de 5' }],
+      });
+    }
+  };
+
+  // ---- Page 3
+  let dept = '';
+  const sel = document.getElementById('cd-dept');
+  sel.addEventListener('change', () => { dept = sel.value; drawImplementacio(); });
+  const drawImplementacio = () => {
+    const fz = document.getElementById('chart-fases');
+    const fr = ready(fz, 'fases');
+    if (fr) {
+      const rows = fr.map((r) => ({ ...r, setmana_inici: Number(r.setmana_inici), setmanes: Number(r.setmanes), ordre: Number(r.ordre) })).sort((a, b) => a.ordre - b.ordre);
+      const end = d3.max(rows, (r) => r.setmana_inici + r.setmanes);
+      rowChart(fz, {
+        rows, domain: [0, end], ticks: d3.range(0, end, 4).filter((t) => t <= end - 3).concat([end]), tickFmt: (t) => 'S' + t,
+        label: (r) => r.ordre + '. ' + r.fase,
+        valueText: (r) => 'Setmanes ' + r.setmana_inici + ' a ' + (r.setmana_inici + r.setmanes),
+        sub: (r) => r.entregables,
+        range: { from: (r) => r.setmana_inici, to: (r) => r.setmana_inici + r.setmanes, color: (r) => (r.ordre === 3 || r.ordre === 4 ? color(0) : 'var(--cds-chart-muted)') },
+        tip: (r) => [{ text: 'Inici: setmana ' + r.setmana_inici }, { text: 'Durada: ' + r.setmanes + ' setmanes' }],
+      });
+    }
+
+    const table = document.getElementById('taula-metriques');
+    const tbody = table.querySelector('tbody');
+    const d = dash.data('metriques');
+    tbody.replaceChildren();
+    if (d.status !== 'ok') {
+      table.classList.toggle('dash-skeleton', d.status === 'loading');
+      sel.replaceChildren();
+      return;
+    }
+    table.classList.remove('dash-skeleton');
+    const depts = [...new Set(d.data.map((r) => r.departament))];
+    sel.replaceChildren(new Option('Tots', ''), ...depts.map((x) => new Option(x, x)));
+    sel.value = depts.includes(dept) ? dept : '';
+    d.data.filter((r) => !sel.value || r.departament === sel.value).forEach((r) => {
+      const tr = el('tr');
+      tr.append(el('td', null, r.metrica), el('td', null, r.departament), el('td', null, r.definicio), el('td', 'cd-hide-narrow', r.owner));
+      tbody.append(tr);
+    });
+  };
+
+  // ---- Page 4
+  const drawGtm = () => {
+    const ic = document.getElementById('chart-icp');
+    const ir = ready(ic, 'icp');
+    if (ir) {
+      rowChart(ic, {
+        rows: ir.map((r) => ({ ...r, encaix: Number(r.encaix) })).sort((a, b) => b.encaix - a.encaix),
+        domain: [0, 100], ticks: [0, 25, 50, 75, 100],
+        label: (r) => r.segment,
+        valueText: (r) => 'Encaix ' + r.encaix,
+        sub: (r) => r.mida + '. ' + r.per_que,
+        range: { from: () => 0, to: (r) => r.encaix, color: (r) => (r.encaix >= 75 ? color(0) : 'var(--cds-chart-muted)') },
+        tip: (r) => [{ text: 'Encaix: ' + r.encaix + ' de 100' }, { text: 'Mida: ' + r.mida }],
+      });
+    }
+    const of = document.getElementById('chart-oferta');
+    const orr = ready(of, 'oferta');
+    if (orr) {
+      rowChart(of, {
+        rows: orr.map((r) => ({ ...r, preu_min: Number(r.preu_min), preu_max: Number(r.preu_max), ordre: Number(r.ordre) })).sort((a, b) => a.ordre - b.ordre),
+        domain: [1000, 100000], log: true, ticks: [1000, 3000, 10000, 30000, 100000], tickFmt: fEurShort,
+        label: (r) => r.servei,
+        valueText: (r) => fEur(r.preu_min) + ' a ' + fEur(r.preu_max) + (r.unitat === 'projecte' ? '' : ' / ' + r.unitat),
+        sub: (r) => r.durada + '. ' + r.descripcio,
+        range: { from: (r) => r.preu_min, to: (r) => r.preu_max, color: (r) => (r.unitat === 'projecte' ? color(0) : color(2)) },
+        tip: (r) => [{ text: 'Des de ' + fEur(r.preu_min) }, { text: 'Fins a ' + fEur(r.preu_max) }, { text: 'Per ' + r.unitat }],
+      });
+    }
+    const pl = document.getElementById('chart-pla');
+    const plr = ready(pl, 'pla90');
+    if (plr) {
+      rowChart(pl, {
+        rows: plr.map((r) => ({ ...r, setmana_inici: Number(r.setmana_inici), setmana_fi: Number(r.setmana_fi), ordre: Number(r.ordre) })).sort((a, b) => a.ordre - b.ordre),
+        domain: [0, 13], ticks: [0, 4, 8, 13], tickFmt: (t) => 'S' + t,
+        label: (r) => r.ordre + '. ' + r.accio,
+        valueText: (r) => 'S' + r.setmana_inici + ' a S' + r.setmana_fi,
+        sub: (r) => 'Indicador: ' + r.kpi,
+        range: { from: (r) => r.setmana_inici, to: (r) => r.setmana_fi, color: () => color(0) },
+        tip: (r) => [{ text: 'Setmanes ' + r.setmana_inici + ' a ' + r.setmana_fi }, { text: r.kpi }],
+      });
+    }
+  };
+
+  // ---- Tabs
+  const pages = { veredicte: drawVeredicte, viabilitat: drawViabilitat, implementacio: drawImplementacio, gtm: drawGtm, fonts: () => {} };
+  let current = 'veredicte';
+  const show = (id, link) => {
+    if (!pages[id]) return;
+    current = id;
+    document.querySelectorAll('.cd-tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
+    document.querySelectorAll('.cd-page').forEach((p) => { p.hidden = p.id !== id; });
+    pages[id]();
+    if (link) dash.setLink(id);
+  };
+  document.querySelectorAll('.cd-tab').forEach((b) => b.addEventListener('click', () => show(b.dataset.tab, true)));
+  const named = document.getElementById(location.hash.slice(1));
+  const start = named && named.closest('.cd-page') ? named.closest('.cd-page').id : 'veredicte';
+  show(start, false);
+  if (named && named.id !== start) named.scrollIntoView();
+
+  dash.onData(() => pages[current]());
+})();
+</script>

@@ -1,0 +1,10 @@
+[
+  {"repte": "Fonts disperses sense warehouse central", "severitat": 5, "mitigacio": "Inventari de fonts i ingesta ELT a un sol warehouse abans de cap dashboard."},
+  {"repte": "Mètriques definides diferent a cada departament", "severitat": 5, "mitigacio": "Diccionari de mètriques amb owner, i càlcul centralitzat en una capa semàntica (dbt o la del warehouse)."},
+  {"repte": "Respostes plausibles però incorrectes", "severitat": 4, "mitigacio": "Preguntes sobre vistes i mètriques certificades, no sobre taules crues; revisió del SQL en decisions crítiques."},
+  {"repte": "Permisos i dades sensibles", "severitat": 4, "mitigacio": "Rols i polítiques de files al warehouse; esquemes per departament; cap dada personal innecessària."},
+  {"repte": "Producte en beta: canvis i límits d'ús", "severitat": 4, "mitigacio": "Arquitectura agnòstica: la capa de dades i semàntica serveix Claude, Power BI o qualsevol altra eina."},
+  {"repte": "RGPD i ubicació de les dades", "severitat": 4, "mitigacio": "Revisió legal, DPA amb el proveïdor, minimització de dades personals."},
+  {"repte": "Cost de consultes al warehouse", "severitat": 3, "mitigacio": "Taules agregades i materialitzades; cada lector re-executa la consulta en obrir el dashboard."},
+  {"repte": "Gestió del canvi i adopció", "severitat": 3, "mitigacio": "Champions per departament, playbook de preguntes i formació curta i pràctica."}
+]

@@ -1,0 +1,5 @@
+[
+  {"cas": "Claude Sonnet 4.6", "sense_semantica": 90.0, "amb_semantica": 98.2},
+  {"cas": "GPT-5.3-Codex", "sense_semantica": 84.1, "amb_semantica": 100.0},
+  {"cas": "Millor resultat global del benchmark", "sense_semantica": 64.5, "amb_semantica": 98.2}
+]

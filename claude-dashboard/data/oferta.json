@@ -1,0 +1,7 @@
+[
+  {"ordre": 1, "servei": "Diagnòstic Data & IA", "preu_min": 2500, "preu_max": 5000, "unitat": "projecte", "durada": "2 setmanes", "descripcio": "Inventari de fonts, KPIs per departament, arquitectura objectiu i pla d'implementació."},
+  {"ordre": 2, "servei": "Pilot Claude Dashboards", "preu_min": 6000, "preu_max": 12000, "unitat": "projecte", "durada": "4 setmanes", "descripcio": "Un departament, warehouse existent, cinc a deu mètriques certificades i un dashboard viu."},
+  {"ordre": 3, "servei": "Implementació completa", "preu_min": 25000, "preu_max": 60000, "unitat": "projecte", "durada": "10 a 14 setmanes", "descripcio": "Warehouse, ingesta, capa semàntica, governança per rols i dashboards per departament."},
+  {"ordre": 4, "servei": "Data partner (retainer)", "preu_min": 1500, "preu_max": 4000, "unitat": "mes", "durada": "Recurrent", "descripcio": "Noves mètriques, qualitat de dades, suport i revisió mensual amb direcció."},
+  {"ordre": 5, "servei": "Workshop per a equips", "preu_min": 1500, "preu_max": 3000, "unitat": "sessió", "durada": "Mig dia", "descripcio": "Com fer bones preguntes de negoci a Claude i llegir el SQL que hi ha darrere de cada número."}
+]

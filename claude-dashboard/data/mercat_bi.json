@@ -1,0 +1,6 @@
+[
+  {"font": "Ken Research", "any_base": 2025, "valor_base": 34.82, "any_obj": 2031, "valor_obj": 56.82, "cagr": 8.4},
+  {"font": "Fortune Business Insights", "any_base": 2023, "valor_base": 29.42, "any_obj": 2030, "valor_obj": 54.27, "cagr": 9.1},
+  {"font": "Data Bridge Market Research", "any_base": 2022, "valor_base": 27.11, "any_obj": 2030, "valor_obj": 58.75, "cagr": 10.15},
+  {"font": "Meticulous Research", "any_base": 2025, "valor_base": null, "any_obj": 2032, "valor_obj": 56.9, "cagr": 7.2}
+]

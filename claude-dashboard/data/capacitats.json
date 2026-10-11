@@ -1,0 +1,11 @@
+[
+  {"capacitat": "Preguntes de negoci en llenguatge natural", "power_bi": 3, "claude": 5, "nota": "Claude respon i construeix el gràfic en minuts. Power BI té Copilot, però com a add-on i lligat a capacitat Fabric."},
+  {"capacitat": "Velocitat fins al primer dashboard", "power_bi": 2, "claude": 5, "nota": "Claude: d'una pregunta a un dashboard viu. Power BI: model, DAX, disseny i publicació."},
+  {"capacitat": "Traçabilitat de cada número", "power_bi": 3, "claude": 5, "nota": "A Claude, cada número mostra la consulta SQL i quan es va refrescar."},
+  {"capacitat": "Connexió a data warehouses al núvol", "power_bi": 5, "claude": 4, "nota": "Claude: Redshift, BigQuery, ClickHouse, Databricks, Snowflake i connectors com Salesforce. Fonts on-premise o Excel han de passar abans per un warehouse."},
+  {"capacitat": "Capa semàntica governada", "power_bi": 5, "claude": 2, "nota": "Power BI defineix cada mètrica un cop al model semàntic. Claude escriu el SQL per gràfic; el suport a models semàntics via connector està anunciat, no consolidat."},
+  {"capacitat": "Seguretat per rols i per files", "power_bi": 5, "claude": 3, "nota": "Cada lector consulta amb els seus propis permisos al warehouse: la seguretat s'ha de definir allà (rols, row access policies)."},
+  {"capacitat": "Informes regulats, pixel-perfect i enviaments programats", "power_bi": 4, "claude": 1, "nota": "Tancaments comptables, informes a consell o reguladors: encara territori del BI clàssic."},
+  {"capacitat": "Maduresa i suport enterprise", "power_bi": 5, "claude": 2, "nota": "Claude Dashboards està en beta des del 8 d'octubre de 2026; desactivat per defecte als plans Enterprise."},
+  {"capacitat": "Integració amb Microsoft 365 i Excel", "power_bi": 5, "claude": 2, "nota": "Power BI no apareix a la llista d'exportació de Claude Dashboards (ni disponible ni anunciat)."}
+]

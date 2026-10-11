@@ -1,0 +1,17 @@
+[
+  {"departament": "Direcció", "metrica": "Ingressos vs pressupost", "definicio": "Ingressos reconeguts del període dividits pel pressupost del mateix període", "owner": "CFO"},
+  {"departament": "Direcció", "metrica": "Marge EBITDA", "definicio": "EBITDA dividit pels ingressos nets", "owner": "CFO"},
+  {"departament": "Vendes", "metrica": "Cobertura de pipeline", "definicio": "Valor ponderat del pipeline obert dividit per l'objectiu del trimestre", "owner": "Head of Sales"},
+  {"departament": "Vendes", "metrica": "Taxa de conversió d'oportunitats", "definicio": "Oportunitats guanyades dividides per oportunitats tancades", "owner": "Head of Sales"},
+  {"departament": "Vendes", "metrica": "Cicle de venda", "definicio": "Dies mitjans entre la creació i el tancament guanyat d'una oportunitat", "owner": "Head of Sales"},
+  {"departament": "Màrqueting", "metrica": "CAC", "definicio": "Despesa de vendes i màrqueting dividida pels clients nous del període", "owner": "CMO"},
+  {"departament": "Màrqueting", "metrica": "Conversió MQL a SQL", "definicio": "Leads acceptats per vendes dividits pels leads qualificats per màrqueting", "owner": "CMO"},
+  {"departament": "Finances", "metrica": "Marge brut", "definicio": "Ingressos menys cost de vendes, dividit pels ingressos", "owner": "CFO"},
+  {"departament": "Finances", "metrica": "DSO", "definicio": "Saldo de clients dividit per les vendes diàries mitjanes", "owner": "Controller"},
+  {"departament": "Operacions", "metrica": "OTIF", "definicio": "Comandes lliurades a temps i completes dividides pel total de comandes", "owner": "COO"},
+  {"departament": "Operacions", "metrica": "Rotació d'estoc", "definicio": "Cost de vendes dividit per l'estoc mitjà", "owner": "COO"},
+  {"departament": "Clients", "metrica": "Churn de clients", "definicio": "Clients perduts en el període dividits pels clients a l'inici", "owner": "Head of CS"},
+  {"departament": "Clients", "metrica": "NRR", "definicio": "Ingressos recurrents d'una cohort al final del període dividits pels de l'inici", "owner": "Head of CS"},
+  {"departament": "Persones", "metrica": "Rotació voluntària", "definicio": "Baixes voluntàries dividides per la plantilla mitjana", "owner": "Head of People"},
+  {"departament": "Persones", "metrica": "Plantilla vs pla", "definicio": "Persones en plantilla dividides per les previstes al pla", "owner": "Head of People"}
+]

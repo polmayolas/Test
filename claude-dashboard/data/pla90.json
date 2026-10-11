@@ -1,0 +1,8 @@
+[
+  {"ordre": 1, "accio": "Laboratori propi: warehouse demo, dbt i Claude Dashboards", "setmana_inici": 0, "setmana_fi": 2, "kpi": "Una demo funcional documentada al repositori"},
+  {"ordre": 2, "accio": "Contingut: Power BI vs Claude Dashboards, explicat amb casos reals", "setmana_inici": 1, "setmana_fi": 13, "kpi": "Dues publicacions setmanals a LinkedIn i un vídeo de la demo"},
+  {"ordre": 3, "accio": "Llista de cent comptes del segment prioritari", "setmana_inici": 2, "setmana_fi": 4, "kpi": "Cent empreses i decisors identificats"},
+  {"ordre": 4, "accio": "Prospecció amb oferta de diagnòstic", "setmana_inici": 4, "setmana_fi": 10, "kpi": "Deu reunions de descoberta"},
+  {"ordre": 5, "accio": "Dos pilots a preu reduït a canvi d'un cas d'èxit", "setmana_inici": 6, "setmana_fi": 11, "kpi": "Dos pilots signats"},
+  {"ordre": 6, "accio": "Productitzar: playbook, plantilles de mètriques i preus", "setmana_inici": 10, "setmana_fi": 13, "kpi": "Un primer retainer recurrent"}
+]
