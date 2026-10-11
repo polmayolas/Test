@@ -16,8 +16,9 @@ Quadern de treball per entendre **Claude Dashboards / Claude Design** i decidir 
 | 2 | [docs/02-mercat-i-futur.md](docs/02-mercat-i-futur.md) | És el futur del BI? Val la pena deixar Power BI? |
 | 3 | [docs/03-viabilitat-i-implementacio.md](docs/03-viabilitat-i-implementacio.md) | Pot tot el BI d'una empresa passar a Claude? Com s'implementa? |
 | 4 | [docs/04-gtm.md](docs/04-gtm.md) | On encaixa el meu perfil, a qui vendre, què vendre i a quin preu |
-| 5 | [docs/fonts.md](docs/fonts.md) | Fonts consultades i nivell de confiança |
-| 6 | [docs/diari.md](docs/diari.md) | Diari d'aprenentatge, sessió a sessió |
+| 5 | [docs/05-empreses-objectiu.md](docs/05-empreses-objectiu.md) | 10 empreses a Espanya que encaixen amb el segment prioritari |
+| 6 | [docs/fonts.md](docs/fonts.md) | Fonts consultades i nivell de confiança |
+| 7 | [docs/diari.md](docs/diari.md) | Diari d'aprenentatge, sessió a sessió |
 
 Les dades de cada gràfic del dashboard són a [`data/`](data/) en JSON, i la pàgina a [`dashboard/index.html`](dashboard/index.html).
 

@@ -7,3 +7,4 @@
 - Conclusió: no deixar Power BI; reorientar-se cap a la capa de dades governada (warehouse + semàntica + permisos) i fer servir Claude com a capa de consum.
 - Creat el dashboard [Claude Dashboards: mercat i GTM](https://claude.ai/artifact/T9ACszeNz6hMiLcaTAkt7Y).
 - Pendent: crear el repositori `Claude-Dashboard` a GitHub i moure-hi aquesta carpeta; validar preus i ICP amb 5 converses reals; muntar el laboratori propi (BigQuery + dbt + Claude Dashboards).
+- Afegida la llista de 10 empreses objectiu a Espanya ([05-empreses-objectiu.md](05-empreses-objectiu.md)): 6 amb stack confirmat i 4 per verificar. Après: les ofertes de feina són la millor font per saber quin warehouse fa servir una empresa.
