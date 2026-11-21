@@ -151,7 +151,10 @@ button:disabled { cursor: default; }
 .typebar input {
   flex: 1; min-width: 0; border: 0; background: transparent; padding: 9px 0; font-size: 16px; outline: none;
 }
-.typebar input::placeholder { color: var(--label-3); }
+.typebar input::placeholder { color: var(--label-2); }
+.search input::placeholder { color: var(--label-2); }
+.nowrap { white-space: nowrap; }
+h1:focus, h2:focus { outline: none; }
 .typebar:focus-within { box-shadow: 0 0 0 2px var(--accent); }
 .send {
   width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
@@ -222,7 +225,7 @@ button.row:active { background: var(--fill); }
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--fill); border-radius: 10px; padding: 2px; gap: 2px;
 }
 .seg button {
-  padding: 11px 6px; min-height: 40px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--label); white-space: nowrap;
+  padding: 11px 6px; min-height: 44px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--label); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .seg button[aria-pressed="true"] { background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,.12); font-weight: 600; }
@@ -382,7 +385,7 @@ button.bar-row:active { background: var(--fill); }
 .set-row .grow small { display: block; color: var(--label-2); font-size: 13px; overflow-wrap: anywhere; }
 .set-row .chev { width: 16px; height: 16px; color: var(--label-3); flex: none; }
 .set-row input.inline {
-  width: 7.5em; text-align: right; border: 0; background: var(--fill); border-radius: 8px; padding: 8px 10px; font-size: 16px; outline: none;
+  width: 7.5em; min-height: 44px; text-align: right; border: 0; background: var(--fill); border-radius: 8px; padding: 8px 10px; font-size: 16px; outline: none;
   font-variant-numeric: tabular-nums;
 }
 .set-row input.inline:focus { box-shadow: 0 0 0 2px var(--accent); }
@@ -424,7 +427,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 .about .logo { width: 52px; height: 52px; }
 .about p { margin: 0; font-size: 14px; color: var(--label-2); line-height: 1.45; }
 .about strong { display: block; color: var(--label); font-size: 17px; }
-.inline-link { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.inline-link { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; display: inline-block; padding: 12px 2px; margin: -12px 0; }
 .loading { padding: 60px 0; text-align: center; color: var(--label-2); }
 
 @media (max-width: 440px) {

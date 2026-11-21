@@ -147,5 +147,25 @@ check('taxi 20 y unas jarritas 10', [{ category: 'transporte' }, { category: 'ot
 check('me compré una camisa 100', { who: 'pol', category: 'compras' });
 check('taxi al hospital 10', { category: 'transporte' });
 
+// --- quinta ronda
+check('me han devuelto 20', { type: 'cash_in', amountBs: 20 });
+check('nos han pagado 300 por la traducción', { type: 'cash_in', amountBs: 300 });
+check('trescientos euros cambiados a siete cuarenta', { type: 'cash_in', source: 'exchange', amountBs: 2220 });
+check('pañales de 40 unidades 95', { amountBs: 95, category: 'noah' });
+check('agua de 20 litros 15', { amountBs: 15 });
+check('compramos 20 panes por 10', { amountBs: 10 });
+check('pasaje para 2 a Santa Cruz 80', { amountBs: 80 });
+check('niñera 4 horas a 20', { amountBs: 80, category: 'personal' });
+check('ayer, día 20, taxi 15', { amountBs: 15, date: '2026-11-20' });
+check('234 con 50 súper', { amountBs: 234.5 });
+check('pagué al constructor 500', { amountBs: 500, currency: 'BOB' });
+check('he puesto 50 de gasolina', { amountBs: 50, category: 'transporte' });
+check('Sol ha pagado la cena 100', { who: 'familia' });
+check('cinco el taxi', { amountBs: 5 });
+check('pan 10 y ayer leche 12', [{ date: '2026-11-21' }, { date: '2026-11-20' }]);
+check('pan 10 y leche 12, ayer', [{ date: '2026-11-20' }, { date: '2026-11-20' }]);
+check('con QR luz 130 y agua 60', [{ method: 'qr' }, { method: 'qr' }]);
+check('compré 4 empanadas', { amountBs: null });
+
 console.log(`\n${pass} ok, ${fail} fallos`);
 process.exit(fail ? 1 : 0);

@@ -48,7 +48,7 @@
 
   <!-- MOVIMIENTOS -->
   <section class="screen" id="scr-hist" aria-labelledby="h-hist" hidden>
-    <header class="lt"><div><p class="eyebrow">Historial</p><h1 id="h-hist">Movimientos</h1></div></header>
+    <header class="lt"><div><p class="eyebrow">Historial</p><h1 id="h-hist" tabindex="-1">Movimientos</h1></div></header>
     <div class="seg" role="group" aria-label="Filtrar" id="hist-seg">
       <button type="button" data-f="all" aria-pressed="true">Todo</button>
       <button type="button" data-f="expense" aria-pressed="false">Gastos</button>
@@ -61,7 +61,7 @@
 
   <!-- RESUMEN -->
   <section class="screen" id="scr-sum" aria-labelledby="h-sum" hidden>
-    <header class="lt"><div><p class="eyebrow">Análisis</p><h1 id="h-sum">Resumen</h1></div></header>
+    <header class="lt"><div><p class="eyebrow">Análisis</p><h1 id="h-sum" tabindex="-1">Resumen</h1></div></header>
     <div class="monthnav">
       <button type="button" id="m-prev" aria-label="Mes anterior"></button>
       <h2 id="m-label"></h2>
@@ -83,7 +83,7 @@
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
   <div class="sheet-h">
     <button type="button" class="l" id="sheet-cancel">Cancelar</button>
-    <h2 id="sheet-title"></h2>
+    <h2 id="sheet-title" tabindex="-1"></h2>
     <button type="button" class="r" id="sheet-ok">Guardar</button>
   </div>
   <div class="sheet-b" id="sheet-body" tabindex="-1"></div>

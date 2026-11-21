@@ -50,7 +50,7 @@
     { id: 'comida', name: 'Comida', hint: 'Súper, mercado, feria', color: '#2f9e44' },
     { id: 'resto', name: 'Restaurantes', hint: 'Restaurantes y cafés', color: '#e8590c' },
     { id: 'transporte', name: 'Transporte', hint: 'Taxis, trufis, viajes a Santa Cruz', color: '#0a72e8' },
-    { id: 'personal', name: 'Personal del hogar', short: 'Ayuda en casa', hint: 'Limpieza, niñera', color: '#8e44c9' },
+    { id: 'personal', name: 'Ayuda en casa', hint: 'Limpieza, niñera, personal del hogar', color: '#8e44c9' },
     { id: 'casa', name: 'Casa', hint: 'Alquiler, luz, agua, gas, internet', color: '#9c6b3c' },
     { id: 'salud', name: 'Salud', hint: 'Farmacia, médico', color: '#e03131' },
     { id: 'ocio', name: 'Ocio', hint: 'Excursiones, actividades, viajes', color: '#6741d9' },
@@ -713,8 +713,8 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(hideToast, actLabel ? 7000 : 3200);
   }
-  function hideToast() {
-    if ($('#toast').contains(document.activeElement)) { const m = $('#mic'); if (m) m.focus({ preventScroll: true }); }
+  function hideToast(silent) {
+    if (!silent && $('#toast').contains(document.activeElement)) restoreFocus(null);
     clearTimeout(toastTimer); $('#toast').classList.remove('show'); $('#toast-act').hidden = true; $('#toast-act').onclick = null; }
 
   // ---------------------------------------------------------------- hoja
@@ -723,7 +723,8 @@
     const wasOpen = !!S.sheet;
     const prevKind = wasOpen ? S.sheet.kind : null;
     S.sheet = state;
-    if (!wasOpen) { lastFocus = document.activeElement; hideToast(); }
+    if (!wasOpen) lastFocus = document.activeElement;
+    hideToast(true);
     // 2) cada hoja nueva empieza arriba (se ve lo que se ha oído)
     const resetScroll = !wasOpen || prevKind !== state.kind;
     renderSheet();
@@ -734,13 +735,24 @@
       $('#sheet-body').scrollTop = 0;
       sh.classList.add('show'); sc.classList.add('show');
       document.body.classList.add('sheet-open');
-      $$('#app, .tabbar').forEach(e => e.setAttribute('aria-hidden', 'true'));
+      $$('#app, .tabbar').forEach(e => { e.setAttribute('aria-hidden', 'true'); e.inert = true; });
       setTimeout(() => {
         const f = state.focus ? $(state.focus, sh) : null;
         (f || $('#sheet-body')).focus({ preventScroll: true });
       }, 60);
     }
     if (resetScroll) $('#sheet-body').scrollTop = 0;
+    if (wasOpen && prevKind !== state.kind) {
+      const f = state.focus ? $(state.focus, $('#sheet')) : null;
+      (f || $('#sheet-title')).focus({ preventScroll: true });
+    }
+  }
+  // Devuelve el foco a algo visible de la pantalla actual
+  function restoreFocus(el) {
+    const visible = x => x && document.contains(x) && x !== document.body && x.getClientRects().length > 0 && !x.closest('[hidden]') && !x.disabled;
+    let target = visible(el) ? el : null;
+    if (!target) target = S.tab === 'home' ? $('#mic') : $('#scr-' + S.tab + ' h1');
+    try { target.focus({ preventScroll: true }); } catch (e) { /* */ }
   }
   function closeSheet() {
     if (!S.sheet) return;
@@ -748,9 +760,9 @@
     const sh = $('#sheet'), sc = $('#scrim');
     sh.classList.remove('show'); sc.classList.remove('show');
     document.body.classList.remove('sheet-open');
-    $$('#app, .tabbar').forEach(e => e.removeAttribute('aria-hidden'));
+    $$('#app, .tabbar').forEach(e => { e.removeAttribute('aria-hidden'); e.inert = false; });
     setTimeout(() => { if (!S.sheet) { sh.hidden = true; sc.hidden = true; $('#sheet-body').innerHTML = ''; } }, 300);
-    if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus({ preventScroll: true }); } catch (e) { /* */ } }
+    restoreFocus(lastFocus);
   }
   function focusKey(el, root) {
     if (!el || !root.contains(el) || el === root) return null;
@@ -914,7 +926,16 @@
       return;
     }
     if (act === 'toggle') { const d = st.items[+b.dataset.i]; d.open = !d.open; renderSheet(); const m = $('.mini[data-i="' + b.dataset.i + '"]'); if (m) m.focus({ preventScroll: true }); return; }
-    if (act === 'remove') { st.items.splice(+b.dataset.i, 1); if (!st.items.length) closeSheet(); else { if (st.items.length === 1) st.items[0].open = true; renderSheet(); } return; }
+    if (act === 'remove') {
+      const i = +b.dataset.i;
+      st.items.splice(i, 1);
+      if (!st.items.length) { closeSheet(); return; }
+      if (st.items.length === 1) st.items[0].open = true;
+      renderSheet();
+      const next = $('.mini[data-i="' + Math.min(i, st.items.length - 1) + '"]') || $('#amt-0') || $('#sheet-ok');
+      if (next) next.focus({ preventScroll: true });
+      return;
+    }
     if (act === 'delete') {
       if (!S.canWrite) return;
       if (!st.armed) { st.armed = true; renderSheet(); setTimeout(() => { if (S.sheet === st && st.armed) { st.armed = false; renderSheet(); } }, 4000); return; }
@@ -922,7 +943,7 @@
       closeSheet();
       if (!prev) { toast('Este movimiento ya no existe.'); return; }
       Store.del(id).then(() => {
-        toast('Movimiento eliminado', 'Deshacer', () => Store.put(id, prev).catch(e2 => toast(errMsg(e2))));
+        toast('Movimiento eliminado', 'Deshacer', () => Store.put(id, prev).then(() => toast('Movimiento restaurado')).catch(e2 => toast(errMsg(e2))));
         setTimeout(() => { const b2 = $('#toast-act'); if (!b2.hidden) b2.focus({ preventScroll: true }); }, 320);
       })
         .catch(err => toast(errMsg(err)));
@@ -1033,7 +1054,7 @@
     h += '<div class="set-sec"><h3>Este móvil</h3><div class="set-card" style="padding:12px 14px"><div class="seg" role="group" aria-label="Quién usa este móvil">' +
       PEOPLE.map(p => '<button type="button" data-set-me="' + p + '" aria-pressed="' + (S.me === p) + '">Soy ' + p + '</button>').join('') +
       '</div></div><p class="foot">Sirve para entender «para mí» y para saber quién anotó cada gasto.</p></div>';
-    h += '<div class="set-sec"><h3>Efectivo en mano</h3><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>' + (waiting ? 'Esperando datos…' : 'Qullqi calcula ' + (bal < 0 ? '−' : '') + esc(money(bal))) + '</small></label>' +
+    h += '<div class="set-sec"><h3>Efectivo en mano</h3><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>' + (waiting ? 'Esperando datos…' : 'Qullqi calcula <span class="nowrap">' + (bal < 0 ? '−' : '') + esc(money(bal)) + '</span>') + '</small></label>' +
       '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="Bs"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '/>' +
       '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
       '<p class="foot">Cuenta los billetes y escribe lo que tenéis. Se anota un ajuste por la diferencia.</p></div>';
@@ -1077,7 +1098,7 @@
     if (b.dataset.act === 'adjust') {
       const inp = $('#adj-in');
       const target = parseCashInput(inp.value);
-      if (target === null) { toast('Escribe cuánto efectivo tenéis.'); inp.focus(); return; }
+      if (target === null) { toast(/^\s*[-−]/.test(inp.value) ? 'El efectivo no puede ser negativo.' : 'Escribe cuánto efectivo tenéis.'); inp.focus(); return; }
       inp.value = '';
       const okSet = await setCashTo(target);
       if (S.sheet === st) renderSheet();
@@ -1121,7 +1142,10 @@
       S.pendingAdjust = { id, target };
       await Store.put(id, doc);
       S.pendingAdjust = null;
-      toast('Efectivo: ' + money(target), 'Deshacer', () => Store.del(id).catch(e2 => toast(errMsg(e2))));
+      toast('Efectivo: ' + money(target), 'Deshacer', () => Store.del(id).then(() => {
+        if (initial) ls.set('qullqi.started', '0');
+        toast('Deshecho');
+      }).catch(e2 => toast(errMsg(e2))));
       return true;
     } catch (err) { toast(errMsg(err, 'Inténtalo otra vez')); return false; }
     finally { S.adjusting = false; }
@@ -1306,7 +1330,7 @@
 
     $('#mic').addEventListener('click', onMic);
     $('#say').addEventListener('input', updateSend);
-    const sendTyped = () => { const v = $('#say').value; if (v.trim()) { $('#say').blur(); processText(v); } };
+    const sendTyped = () => { const v = $('#say').value; if (v.trim()) { processText(v); lastFocus = $('#say'); } };
     $('#typebar').addEventListener('submit', e => { e.preventDefault(); sendTyped(); });
     $('#say').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); sendTyped(); } });
     $('#send').addEventListener('click', e => { e.preventDefault(); sendTyped(); });
@@ -1335,13 +1359,18 @@
       if (v === null) { toast('Escribe cuánto efectivo tenéis, o empieza desde 0.'); inp.focus(); return; }
       if (v === 0) { ls.set('qullqi.started', '1'); renderHome(); return; }
       S.starting = true;
-      try { if (await setCashTo(v, 'Efectivo inicial')) ls.set('qullqi.started', '1'); } finally { S.starting = false; }
+      try { if (await setCashTo(v, 'Efectivo inicial')) { ls.set('qullqi.started', '1'); restoreFocus($('#mic')); } } finally { S.starting = false; }
     };
     document.addEventListener('submit', e => { if (e.target.id === 'start-form') { e.preventDefault(); startNow(); } });
     document.addEventListener('keydown', e => { if (e.target && e.target.id === 'start-in' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); startNow(); } });
     document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#start-go')) { e.preventDefault(); startNow(); } });
 
-    $('#hist-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.hist.f = b.dataset.f; S.hist.limit = 80; renderHist(); });
+    $('#hist-seg').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      S.hist.f = b.dataset.f; S.hist.limit = 80;
+      if (b.dataset.f !== 'expense') { S.hist.cat = null; S.hist.who = null; S.hist.month = null; }
+      renderHist();
+    });
     let qTimer = null;
     $('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.hist.q = e.target.value; S.hist.limit = 80; renderHist(); }, 150); });
     $('#scr-hist').addEventListener('click', e => {
@@ -1362,6 +1391,7 @@
     sb.addEventListener('input', onEntryInput);
     sb.addEventListener('change', onSettingsChange);
     sb.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && S.sheet && S.sheet.kind === 'cat' && e.target.id === 'cat-name') { e.preventDefault(); saveCat(); return; }
       if (e.key === 'Enter' && S.sheet && S.sheet.kind === 'entry' && e.target.tagName === 'INPUT' && e.target.type !== 'date') { e.preventDefault(); saveEntry(); }
     });
     $('#sheet-ok').addEventListener('click', () => {
@@ -1377,7 +1407,8 @@
     // focus trap básico
     $('#sheet').addEventListener('keydown', e => {
       if (e.key !== 'Tab' || !S.sheet) return;
-      const f = $$('#sheet button:not([disabled]):not([hidden]), #sheet input:not([disabled]), #sheet textarea').filter(x => x.offsetParent !== null);
+      const f = $$('#sheet button:not([disabled]):not([hidden]), #sheet input:not([disabled]), #sheet textarea:not([disabled]), #sheet [tabindex="0"]')
+        .filter(x => x.offsetParent !== null && x.tabIndex >= 0 && getComputedStyle(x).visibility !== 'hidden');
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }

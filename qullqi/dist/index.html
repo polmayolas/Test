@@ -156,7 +156,10 @@ button:disabled { cursor: default; }
 .typebar input {
   flex: 1; min-width: 0; border: 0; background: transparent; padding: 9px 0; font-size: 16px; outline: none;
 }
-.typebar input::placeholder { color: var(--label-3); }
+.typebar input::placeholder { color: var(--label-2); }
+.search input::placeholder { color: var(--label-2); }
+.nowrap { white-space: nowrap; }
+h1:focus, h2:focus { outline: none; }
 .typebar:focus-within { box-shadow: 0 0 0 2px var(--accent); }
 .send {
   width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
@@ -227,7 +230,7 @@ button.row:active { background: var(--fill); }
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--fill); border-radius: 10px; padding: 2px; gap: 2px;
 }
 .seg button {
-  padding: 11px 6px; min-height: 40px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--label); white-space: nowrap;
+  padding: 11px 6px; min-height: 44px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--label); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis;
 }
 .seg button[aria-pressed="true"] { background: var(--card); box-shadow: 0 1px 4px rgba(0,0,0,.12); font-weight: 600; }
@@ -387,7 +390,7 @@ button.bar-row:active { background: var(--fill); }
 .set-row .grow small { display: block; color: var(--label-2); font-size: 13px; overflow-wrap: anywhere; }
 .set-row .chev { width: 16px; height: 16px; color: var(--label-3); flex: none; }
 .set-row input.inline {
-  width: 7.5em; text-align: right; border: 0; background: var(--fill); border-radius: 8px; padding: 8px 10px; font-size: 16px; outline: none;
+  width: 7.5em; min-height: 44px; text-align: right; border: 0; background: var(--fill); border-radius: 8px; padding: 8px 10px; font-size: 16px; outline: none;
   font-variant-numeric: tabular-nums;
 }
 .set-row input.inline:focus { box-shadow: 0 0 0 2px var(--accent); }
@@ -429,7 +432,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 .about .logo { width: 52px; height: 52px; }
 .about p { margin: 0; font-size: 14px; color: var(--label-2); line-height: 1.45; }
 .about strong { display: block; color: var(--label); font-size: 17px; }
-.inline-link { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.inline-link { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; display: inline-block; padding: 12px 2px; margin: -12px 0; }
 .loading { padding: 60px 0; text-align: center; color: var(--label-2); }
 
 @media (max-width: 440px) {
@@ -497,7 +500,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
   <!-- MOVIMIENTOS -->
   <section class="screen" id="scr-hist" aria-labelledby="h-hist" hidden>
-    <header class="lt"><div><p class="eyebrow">Historial</p><h1 id="h-hist">Movimientos</h1></div></header>
+    <header class="lt"><div><p class="eyebrow">Historial</p><h1 id="h-hist" tabindex="-1">Movimientos</h1></div></header>
     <div class="seg" role="group" aria-label="Filtrar" id="hist-seg">
       <button type="button" data-f="all" aria-pressed="true">Todo</button>
       <button type="button" data-f="expense" aria-pressed="false">Gastos</button>
@@ -510,7 +513,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
   <!-- RESUMEN -->
   <section class="screen" id="scr-sum" aria-labelledby="h-sum" hidden>
-    <header class="lt"><div><p class="eyebrow">Análisis</p><h1 id="h-sum">Resumen</h1></div></header>
+    <header class="lt"><div><p class="eyebrow">Análisis</p><h1 id="h-sum" tabindex="-1">Resumen</h1></div></header>
     <div class="monthnav">
       <button type="button" id="m-prev" aria-label="Mes anterior"></button>
       <h2 id="m-label"></h2>
@@ -532,7 +535,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
   <div class="sheet-h">
     <button type="button" class="l" id="sheet-cancel">Cancelar</button>
-    <h2 id="sheet-title"></h2>
+    <h2 id="sheet-title" tabindex="-1"></h2>
     <button type="button" class="r" id="sheet-ok">Guardar</button>
   </div>
   <div class="sheet-b" id="sheet-body" tabindex="-1"></div>
@@ -560,7 +563,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   }
 
   // ---------- números ----------
-  const UNITS = {
+  const UNITS = Object.assign(Object.create(null), {
     cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7,
     ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15,
     dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiun: 21,
@@ -571,7 +574,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500,
     seiscientos: 600, seiscientas: 600, setecientos: 700, setecientas: 700, ochocientos: 800,
     ochocientas: 800, novecientos: 900, novecientas: 900
-  };
+  });
   const isTens = v => v >= 20 && v <= 90 && v % 10 === 0;
   const isHundreds = v => v >= 100 && v < 1000 && v % 100 === 0;
 
@@ -614,23 +617,23 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     return toks;
   }
 
-  const CUR = {
+  const CUR = Object.assign(Object.create(null), {
     bs: 'BOB', bob: 'BOB', boliviano: 'BOB', bolivianos: 'BOB', peso: 'BOB', pesos: 'BOB',
     pesitos: 'BOB', bolis: 'BOB', 'bs.': 'BOB',
     usd: 'USD', dolar: 'USD', dolares: 'USD', dollar: 'USD', dollars: 'USD', verdes: 'USD',
     eur: 'EUR', euro: 'EUR', euros: 'EUR', '$': 'USD', '€': 'EUR'
-  };
+  });
   const curOf = tok => tok && (tok.kind === 'word' || tok.kind === 'sym') ? CUR[tok.t] || null : null;
 
   const VERBS = new Set(('gaste gastado gastamos gastar gasto gastaste gastaron pague pagado pagamos pagar ' +
     'pagaste pagaron costo cuesta costaron cuestan salio salieron son fueron compre compramos ' +
     'saque sacamos sacado sacar retire retiramos retirado retirar cambie cambiamos cambiado ' +
-    'recibi recibimos cobre cobramos ingrese ingresamos dieron dio total precio vale valio').split(' '));
+    'recibi recibimos cobre cobramos ingrese ingresamos dieron dio total precio vale valio puesto pagado gastado comprado').split(' '));
 
   const AFTER_DEC = new Set(['y', 'en', 'para', 'de', 'del', 'por', 'el', 'la', 'al', 'a', 'con']);
   const QTY_OK = new Set(['y', 'e', 'en', 'para', 'de', 'del', 'por', 'con', 'el', 'la', 'al', 'a', 'que', 'mas', 'menos', 'hoy', 'ayer', 'o', 'centavos', 'mil', 'medio', 'media', 'tambien', 'ademas', 'luego', 'despues', 'no', 'perdon', 'digo', 'cada', 'ida', 'vuelta']);
 
-  const UNIT_NOUNS = new Set('ano anos dia dias mes meses semana semanas persona personas hora horas minuto minutos kilo kilos kg litro litros unidad unidades paquete paquetes vez veces docena metro metros gramos gr grs libra libras arroba arrobas ml cc plato platos'.split(' '));
+  const UNIT_NOUNS = new Set('noche noches ano anos dia dias mes meses semana semanas persona personas hora horas minuto minutos kilo kilos kg litro litros unidad unidades paquete paquetes vez veces docena metro metros gramos gr grs libra libras arroba arrobas ml cc plato platos'.split(' '));
   const STOPW = new Set('y e en de del por un una unos unas el la los las a al que para lo le les me nos te se mi con o es ha mas menos tambien ademas luego despues no si ya hoy ayer anoche cada'.split(' '));
   const isContent = w => !STOPW.has(w) && !VERBS.has(w) && !(w in UNITS) && !CUR[w] && w !== 'mil' && w.length > 1;
   let KW_WORDS = null;
@@ -739,7 +742,8 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         }
         const dv2 = nt.kind === 'word' && after > end + 2 ? dv + UNITS[toks[after - 1].t] : dv;
         if (dv2 !== null && dv2 > 0 && dv2 < 100 && Number.isInteger(value) &&
-            (!toks[after] || toks[after].t === 'centavos' || toks[after].kind === 'punct' || curOf(toks[after]) || AFTER_DEC.has(toks[after].t))) {
+            (!toks[after] || toks[after].t === 'centavos' || toks[after].kind === 'punct' || curOf(toks[after]) || AFTER_DEC.has(toks[after].t) ||
+             (dv2 >= 10 && toks[after].kind === 'word' && !/s$/.test(toks[after].t)))) {
           value = Math.round((value + dv2 / 100) * 100) / 100;
           end = toks[after] && toks[after].t === 'centavos' ? after + 1 : after;
           if (!currency && curOf(toks[end])) { currency = curOf(toks[end]); end++; }
@@ -766,12 +770,25 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       if (!currency && value <= 12 && Number.isInteger(value) && nx && nx.kind === 'word' && !QTY_OK.has(nx.t)) {
         // delante de un producto conocido ("leche 12 huevos 25") es un precio; tras un verbo ("cambiaron 4 llantas, 1600"), cantidad
         const prevIsProduct = prevContent && kwWords().has(prev.t);
-        if (UNIT_NOUNS.has(nx.t) || ((!prevContent || (laterNum && !prevIsProduct)) && value >= 2 && /s$/.test(nx.t))) score = Math.min(score - 2, -1);
+        if (UNIT_NOUNS.has(nx.t) || ((!prevContent || (laterNum && !prevIsProduct)) && value >= 2 && /s$/.test(nx.t))) { score = Math.min(score - 2, -1); }
         else if (!prevContent) score -= 2;
       }
+      let qty = false;
+      // "40 unidades", "20 litros": con unidad es cantidad sea cual sea el número
+      if (!currency && nx && nx.kind === 'word' && UNIT_NOUNS.has(nx.t) && laterNum) { score = Math.min(score - 3, -1); qty = true; }
+      // "20 panes por 10": plural seguido de "por/a" + número
+      if (!currency && Number.isInteger(value) && nx && nx.kind === 'word' && /s$/.test(nx.t) && !QTY_OK.has(nx.t) && !CUR[nx.t]) {
+        for (let q = nxi + 1; q < Math.min(toks.length, nxi + 5); q++) {
+          if ((toks[q].t === 'por' || toks[q].t === 'a') && toks[q + 1] && (toks[q + 1].kind === 'num' || toks[q + 1].t in UNITS)) { score = Math.min(score - 3, -1); qty = true; break; }
+          if (toks[q].kind === 'punct') break;
+        }
+      }
+      // "pasaje para 2 a Santa Cruz 80": número de personas
+      if (!currency && value <= 10 && Number.isInteger(value) && prev && prev.t === 'para' && laterNum) { score = Math.min(score - 3, -1); qty = true; }
       // "2 de mantequilla 30": cantidad + de + producto + precio
       if (!currency && value <= 12 && Number.isInteger(value) && nx && nx.t === 'de' && toks[nxi + 1] && toks[nxi + 1].kind === 'word' && toks[nxi + 2] && toks[nxi + 2].kind === 'num') score = Math.min(score - 2, -1);
-      out.push({ value, currency, fromWords, score, i0: curStart, i1: Math.max(end, j) - 1, numIdx: i, symIdx });
+      const isQty = qty || (!currency && value <= 12 && Number.isInteger(value) && nx && nx.kind === 'word' && !QTY_OK.has(nx.t) && score < 0);
+      out.push({ value, currency, fromWords, score, i0: curStart, i1: Math.max(end, j) - 1, numIdx: i, symIdx, qty: isQty });
       i = Math.max(end, j) - 1;
     }
     return out;
@@ -780,15 +797,15 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   // ---------- diccionarios ----------
   // peso 3 = lugar / señal fuerte; 1 = artículo
   const CATS = [
-    { id: 'comida', kw: { 3: 'supermercado super súper mercado feria tienda almacen almacén despensa verduleria verdulería carniceria carnicería panaderia panadería fruteria frutería minimarket abarrotes compra del mes compras de comida comida para casa ketal hipermaxi fidalga', 1: 'marraqueta marraquetas gaseosa gaseosas kilo kilos naranja naranjas mandarina mandarinas yuca choclo botellon de agua agua mineral comida verduras verdura fruta frutas pan leche huevos huevo carne pollo queso arroz aceite fideos azucar azúcar harina yogur cereal papas papa tomates tomate cebolla platano plátano manzanas palta paltas mantequilla jamon jamón botellon botellón garrafon garrafón cafe molido galletas snacks lentejas frijoles pescado verdurita abarrote' } },
-    { id: 'resto', kw: { 4: 'cafe con leche café con leche jugo de', 3: 'api sonso zonzo tucumana tucumanas silpancho majadito anticucho anticuchos salteña salteñas saltena saltenas pique desayuno desayunamos comimos cenamos almorzamos para llevar restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería pension pensión comedor', 1: 'coca cola salchipapa salchipapas huminta humintas humita humitas chipa chipas mate mani maní chicharron chicharrón api sonso zonzo tucumana tucumanas silpancho majadito saice sopa anticucho anticuchos broaster pollo frito mocochinchi chicha refresco masaco cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
-    { id: 'transporte', kw: { 3: 'taxi taxis trufi micro bus buses colectivo flota mototaxi uber gasolina combustible diesel diésel peaje transfer traslado pasaje pasajes parqueo transporte surtidor nafta taxista mecanico mecánico taller llanta llantas gomeria gomería surubi vagoneta', 4: 'cambio de aceite aceite del auto', 1: 'auto coche camioneta moto viaje a santa cruz a santa cruz de santa cruz aeropuerto viru viru' } },
+    { id: 'comida', kw: { 4: 'agua mineral', 3: 'supermercado super súper mercado feria tienda almacen almacén despensa verduleria verdulería carniceria carnicería panaderia panadería fruteria frutería minimarket abarrotes compra del mes compras de comida comida para casa ketal hipermaxi fidalga', 1: 'marraqueta marraquetas gaseosa gaseosas kilo kilos naranja naranjas mandarina mandarinas yuca choclo botellon de agua agua mineral comida verduras verdura fruta frutas pan leche huevos huevo carne pollo queso arroz aceite fideos azucar azúcar harina yogur cereal papas papa tomates tomate cebolla platano plátano manzanas palta paltas mantequilla jamon jamón botellon botellón garrafon garrafón cafe molido galletas snacks lentejas frijoles pescado verdurita abarrote' } },
+    { id: 'resto', kw: { 4: 'cafe con leche café con leche jugo de', 3: 'api sonso zonzo tucumana tucumanas silpancho majadito anticucho anticuchos salteña salteñas saltena saltenas pique desayuno desayunamos comimos cenamos almorzamos comido fuera hemos comido para llevar restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería pension pensión comedor', 1: 'chifa polleria pollería tarta chocolate golosinas churrasco singani coca cola salchipapa salchipapas huminta humintas humita humitas chipa chipas mate mani maní chicharron chicharrón api sonso zonzo tucumana tucumanas silpancho majadito saice sopa anticucho anticuchos broaster pollo frito mocochinchi chicha refresco masaco cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
+    { id: 'transporte', kw: { 3: 'taxi taxis trufi micro bus buses colectivo flota mototaxi uber gasolina combustible diesel diésel peaje transfer traslado pasaje pasajes parqueo transporte surtidor nafta taxista mecanico mecánico taller llanta llantas gomeria gomería surubi vagoneta', 4: 'cambio de aceite aceite del auto cambio de rueda', 2: 'vuelo vuelos avion avión rueda ruedas', 1: 'auto coche camioneta moto viaje a santa cruz a santa cruz de santa cruz aeropuerto viru viru' } },
     { id: 'personal', kw: { 3: 'limpieza señora de la limpieza senora de la limpieza limpiadora empleada empleada domestica nana niñera ninera cuidadora canguro jardinero jardinera chica que cuida cuida a noah cuidar a noah cuidado de noah sueldo planchado lavado de ropa lavandera que limpia nos limpia', 1: 'ayuda' } },
-    { id: 'casa', kw: { 4: 'productos de limpieza articulos de limpieza', 3: 'alquiler renta luz electricidad agua potable factura del agua gas garrafa internet wifi telefono teléfono agua cre cotas cooperativa de agua saguapac megas recarga credito para el celular crédito para el celular ferreteria ferretería reparacion reparación arreglo plomero electricista cerrajero muebles mueble lavanderia lavandería tigo entel viva', 1: 'pintura cemento clavos casa hogar bombilla foco detergente lavandina escoba papel higienico papel higiénico' } },
-    { id: 'salud', kw: { 3: 'farmacia medico médico doctor doctora medicina medicinas medicamento medicamentos dentista hospital clinica clínica analisis análisis laboratorio consulta pediatra medica médica posta centro de salud seguro medico seguro médico vacuna vacunas psicologo psicólogo fisioterapia', 1: 'farmasia masaje jarabe antibiotico antibiótico curitas termometro termómetro pastillas ibuprofeno paracetamol vitaminas' } },
-    { id: 'ocio', kw: { 3: 'ocio excursion excursión tour cine fiesta piscina museo paseo cabalgata entrada entradas concierto amboro amboró el fuerte cuevas pajcha la pajcha vinedo viñedo bodega yoga clase de clases de actividad hotel hostal cabaña cabana alojamiento vacaciones mirador', 1: 'bici bicis guia guía habitacion habitación juego juegos libro libros' } },
-    { id: 'noah', kw: { 3: 'pañales panales toallitas guarderia guardería juguete juguetes kinder colegio escuela', 1: 'biberon biberón chupete papilla leche de formula leche de fórmula ropa de noah' } },
-    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador regalo regalos', 1: 'flores botas gafas lentes anteojos bicicleta tela celular camisa camisas polera poleras chamarra sandalias chinelas bloqueador protector solar camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
+    { id: 'casa', kw: { 4: 'productos de limpieza articulos de limpieza', 3: 'alquiler renta luz electricidad agua potable factura del agua gas garrafa internet wifi telefono teléfono agua cre cotas cooperativa de agua saguapac megas recarga credito para el celular crédito para el celular ferreteria ferretería reparacion reparación arreglo plomero electricista cerrajero muebles mueble lavanderia lavandería tigo entel viva', 1: 'mosquitero velas vela leña lena carbon carbón albañil albanil recargado credito crédito pintura cemento clavos casa hogar bombilla foco detergente lavandina escoba papel higienico papel higiénico' } },
+    { id: 'salud', kw: { 3: 'pasta de dientes farmacia medico médico doctor doctora medicina medicinas medicamento medicamentos dentista hospital clinica clínica analisis análisis laboratorio consulta pediatra medica médica posta centro de salud seguro medico seguro médico vacuna vacunas psicologo psicólogo fisioterapia', 1: 'repelente pomada lentillas optica óptica fisio farmasia masaje jarabe antibiotico antibiótico curitas termometro termómetro pastillas ibuprofeno paracetamol vitaminas' } },
+    { id: 'ocio', kw: { 3: 'ocio excursion excursión tour cine fiesta piscina museo paseo cabalgata entrada entradas concierto amboro amboró el fuerte cuevas pajcha la pajcha vinedo viñedo bodega yoga clase de clases de actividad hotel hostal cabaña cabana alojamiento vacaciones mirador', 1: 'gimnasio netflix spotify bici bicis guia guía habitacion habitación juego juegos libro libros' } },
+    { id: 'noah', kw: { 3: 'pañales panales toallitas guarderia guardería juguete juguetes kinder colegio escuela', 1: 'matricula matrícula cuna cochecito piñata pinata biberon biberón chupete papilla leche de formula leche de fórmula ropa de noah' } },
+    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador regalo regalos', 1: 'peluquero peluquera termo flores botas gafas lentes anteojos bicicleta tela celular camisa camisas polera poleras chamarra sandalias chinelas bloqueador protector solar camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
     { id: 'otros', kw: { 3: 'comision comisión impuesto multa tramite trámite donacion donación', 1: '' } }
   ];
 
@@ -801,7 +818,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     'viru viru', 'senora de la limpieza', 'empleada domestica', 'chica que cuida', 'cuida a noah', 'cuidar a noah',
     'cuidado de noah', 'lavado de ropa', 'productos de limpieza', 'articulos de limpieza', 'agua potable',
     'factura del agua', 'credito para el celular', 'papel higienico', 'seguro medico', 'el fuerte', 'la pajcha',
-    'clase de', 'clases de', 'cafe con leche', 'jugo de', 'para llevar', 'cambio de aceite', 'aceite del auto', 'botellon de agua', 'agua mineral', 'pollo frito', 'cooperativa de agua', 'centro de salud', 'que limpia', 'nos limpia', 'protector solar', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
+    'clase de', 'clases de', 'cafe con leche', 'jugo de', 'para llevar', 'comido fuera', 'hemos comido', 'cambio de rueda', 'pasta de dientes', 'corte de pelo', 'cambio de aceite', 'aceite del auto', 'botellon de agua', 'agua mineral', 'pollo frito', 'cooperativa de agua', 'centro de salud', 'que limpia', 'nos limpia', 'protector solar', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
   ];
 
   function buildIndex(extra) {
@@ -856,11 +873,12 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   }
 
   // ---------- quién ----------
-  const WHO_SUBJ_RE = /\b(sol|pol|paul|pool|noah|noa) (?:(?:me|le|les|nos) )?(?:pago|pagaron|compro|gasto|dice|dijo|fue|trajo|pidio|saco|cambio|tiene|quiere|me dijo|nos dijo|ya)\b/g;
+  const WHO_INV_RE = /\b(?:pago|ha pagado|compro|ha comprado|gasto|ha gastado|puso|ha puesto) (?:sol|pol|paul|pool)\b/g;
+  const WHO_SUBJ_RE = /\b(sol|pol|paul|pool|noah|noa) (?:(?:me|le|les|nos) )?(?:(?:ha|han) (?:pagado|comprado|gastado|sacado|cambiado|puesto|traido)|pago|pagaron|compro|gasto|dice|dijo|fue|trajo|pidio|saco|cambio|tiene|quiere|me dijo|nos dijo|ya)\b/g;
   const WHO_WITH_RE = /\bcon (?:sol|pol|paul|pool)\b/g;
   const SUN_RE = /\b(?:gafas|lentes|anteojos|crema|protector|bloqueador|sombrero|gorra) (?:de|del|para el|contra el) sol\b/g;
   function detectWho(norm, me) {
-    norm = norm.replace(WHO_SUBJ_RE, ' ').replace(WHO_WITH_RE, ' ').replace(SUN_RE, ' ');
+    norm = norm.replace(WHO_SUBJ_RE, ' ').replace(WHO_INV_RE, ' ').replace(WHO_WITH_RE, ' ').replace(SUN_RE, ' ');
     const has = re => re.test(norm);
     const noah = has(/\b(noah|noa|noe|(?:el|del|al) (?:nene|bebe|peque|nino)|nuestro hijo|mi hijo)\b/);
     const fam = has(/\b(toda la familia|la familia|familia|familiar|todos|los tres)\b/);
@@ -869,7 +887,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     let sol = false;
     { const re = /(^|[^a-z])(el |del |al )?sol\b/g; let m; while ((m = re.exec(norm))) { if (!m[2]) { sol = true; break; } } }
     let pol = has(/\b(pol|paul|pool)\b/);
-    const forMe = has(/\b(para mi|para mi mismo|para mi misma|mio|mia|me compre|me he comprado|me corte)\b/) ||
+    const forMe = has(/\b(para mi|para mi mismo|para mi misma|mio|mia|me compre|me he comprado|me corte|me he cortado)\b/) ||
       has(/\b(?:mi|mis) (?!hijo|hija|suegr|madre|padre|mama|papa|abuel|herman|tio|tia|mujer|esposa|marido|esposo|familia|casa|novi|amig|cuenta|tarjeta)[a-z]/);
     if (has(/\b(?:sol|pol|paul) y yo\b|\byo y (?:sol|pol|paul)\b/)) return 'pareja';
     if (has(/\bmi (?:mujer|esposa)\b/) && me === 'Pol') return 'sol';
@@ -890,7 +908,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   const DAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
   const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
   const MONTH_RE = '(?:' + MONTHS.join('|') + ')';
-  const DATE_RE = /\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:el )?(?:primero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|veintiuno|veintidos|veintitres|veinticuatro|veinticinco|veintiseis|veintisiete|veintiocho|veintinueve|treinta|treinta y uno) de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|el (?:(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo) )?\d{1,2}(?= (?!bs\b|bolivianos\b|pesos\b|dolares\b|euros\b|de\b|por\b|x\b|y\b|con\b|centavos\b|mil\b)[a-z])|(?:el )?(?:dia )?\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|el dia \d{1,2}|hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) (?:dias?|semanas?))\b/g;
+  const DATE_RE = /\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:el )?(?:primero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|veintiuno|veintidos|veintitres|veinticuatro|veinticinco|veintiseis|veintisiete|veintiocho|veintinueve|treinta|treinta y uno) de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|el (?:(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo) )?\d{1,2}(?= (?!bs\b|bolivianos\b|pesos\b|dolares\b|euros\b|de\b|por\b|x\b|y\b|con\b|centavos\b|mil\b)[a-z])|(?:el )?(?:dia )?\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|(?:el )?dia \d{1,2}|hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) (?:dias?|semanas?))\b/g;
   function detectDate(norm, now) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let m;
@@ -925,7 +943,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     let day, mon, year = null;
     if (m) { day = +m[1]; mon = +m[2] - 1; if (m[3]) year = m[3].length === 2 ? 2000 + +m[3] : +m[3]; }
     else if ((m = /(\d{1,2}) de ([a-z]+)$/.exec(s))) { day = +m[1]; mon = MONTHS.indexOf(m[2]); if (mon > 8) mon = m[2] === 'setiembre' ? 8 : mon - 1; }
-    else if ((m = /^el dia (\d{1,2})$/.exec(s)) || (m = /^el (?:[a-z]+ )?(\d{1,2})$/.exec(s))) { day = +m[1]; mon = today.getMonth(); s = 'el dia ' + day; }
+    else if ((m = /^(?:el )?dia (\d{1,2})$/.exec(s)) || (m = /^el (?:[a-z]+ )?(\d{1,2})$/.exec(s))) { day = +m[1]; mon = today.getMonth(); s = 'el dia ' + day; }
     else if ((m = /^(?:el )?([a-z]+(?: y uno)?) de ([a-z]+)$/.exec(s))) {
       day = m[1] === 'primero' ? 1 : m[1] === 'treinta y uno' ? 31 : UNITS[m[1]];
       mon = MONTHS.indexOf(m[2]); if (mon > 8) mon = m[2] === 'setiembre' ? 8 : mon - 1;
@@ -954,8 +972,9 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   const ATM_BANK_RE = /\b(?:saque|sacamos|retire|retiramos)\b.*\bdel banco\b/;
   const OTHER_OBJ_RE = new RegExp('\\b(?:recibi|recibimos|me dieron|nos dieron|me dio|nos dio|me pasaron|nos pasaron|me prestaron|nos prestaron|ingrese|ingresamos) ' + MONEY_OBJ);
   const OTHER_MORE_RE = new RegExp('\\b(?:(?:le|les|me|nos) (?:regalo|regalaron|dieron|dio|mando|mandaron|enviaron|envio)|(?:me|nos) (?:llego|llegaron|reembolsaron)|ingresos? de|gane|ganamos|premio de|encontre|encontramos) ' + MONEY_OBJ);
+  const OTHER_PERF_RE = /\b(?:me|nos) (?:ha|han) (?:devuelto|pagado|regalado|dado|transferido|prestado)\b|\b(?:me|nos) (?:pago|devolvio|pagaron)\b(?! (?:sol|pol|paul|yo))/;
   const OTHER_ANY_RE = /\b(cobre|cobramos|me pagaron|nos pagaron|me devolvieron|nos devolvieron|me devolvio|nos devolvio|me regalaron|nos regalaron|devolucion|reembolso|reembolsaron|vendi|vendimos|casa de cambio)\b/;
-  const EXCHANGE_RE = /\b(cambie|cambiamos|cambiado|cambiar|cambio|cambiaron|vendi|vendimos|casa de cambio)\b/;
+  const EXCHANGE_RE = /\b(cambie|cambiamos|cambiado|cambiados|cambiadas|cambiar|cambio|cambiaron|vendi|vendimos|casa de cambio)\b/;
   const FOREIGN_RE = /\b(dolares|dolar|usd|euros|euro|eur|verdes)\b|[$€]/;
   const NOT_CASHIN_RE = /\b(pague|pagamos|gaste|gastamos|compre|compramos|comision|propina|(?:me|nos|le|les) cobr(?:o|aron))\b/;
   // "cambié 700 bolivianos a dólares": salen bolivianos -> gasto
@@ -969,7 +988,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     }
     if (NOT_CASHIN_RE.test(norm)) return { type: 'expense', source: null };
     if (ATM_HARD.test(norm) || ATM_VERB_RE.test(norm) || ATM_BANK_RE.test(norm)) return { type: 'cash_in', source: 'atm' };
-    if (OTHER_OBJ_RE.test(norm) || OTHER_ANY_RE.test(norm) || OTHER_MORE_RE.test(norm)) return { type: 'cash_in', source: 'other' };
+    if (OTHER_OBJ_RE.test(norm) || OTHER_ANY_RE.test(norm) || OTHER_MORE_RE.test(norm) || OTHER_PERF_RE.test(norm)) return { type: 'cash_in', source: 'other' };
     return { type: 'expense', source: null };
   }
 
@@ -1043,7 +1062,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g,
       new RegExp('\\b(?:a|de|desde|hasta|para) las? ' + NT + '(?: y (?:media|cuarto|\\d+))?\\b', 'g'),
       new RegExp('\\b' + NT + ' (?:de la (?:manana|tarde|noche)|en punto|horas?|hrs?|minutos?|mins?)\\b', 'g'),
-      /\b(?:calle|avenida|av|numero|nro|habitacion|talla|piso|linea|puesto|mesa para) \d+\b/g,
+      /\b(?:calle|avenida|av|numero|nro|habitacion|talla|piso|linea|mesa para) \d+\b/g,
       // "km 3" (sin número delante ni moneda detrás: "300 km 250 bolivianos" conserva el 250)
       /(?:^|[^\d\s] ?|[a-z] )\b(?:km|kilometro) \d+\b(?! ?(?:bs|bolivianos|pesos))/g,
       new RegExp('\\bde ' + NT + ' a ' + NT + '(?=\\s+(?:\\d|horas|hrs))', 'g'),
@@ -1053,6 +1072,13 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     const demote = new Array(toks.length).fill(false);
     { const re = /\b(?:calle|avenida|av|barrio)\s+(?:[a-z]+\s+){1,3}?(?:n(?:umero|ro)?\s+)?(\d+)\b/g; let mm;
       while ((mm = re.exec(norm))) { const b = mm.index + mm[0].length; toks.forEach((t, i) => { if (t.kind === 'num' && t.end === b) demote[i] = true; }); } }
+    // "puesto 12" (del mercado) no es importe, pero "he puesto 50 de gasolina" sí
+    { const re = /\bpuesto (\d+)\b/g; let mm;
+      while ((mm = re.exec(norm))) {
+        if (/\b(?:he|has|ha|hemos|han|habeis) $/.test(norm.slice(Math.max(0, mm.index - 8), mm.index))) continue;
+        const a = mm.index, b = a + mm[0].length;
+        toks.forEach((t, i) => { if (t.kind === 'num' && t.start >= a && t.end <= b) dropMask[i] = true; });
+      } }
     // horas, calles, km, fechas: sus números no son importes
     for (const re of NOT_AMOUNT) {
       let mm; re.lastIndex = 0;
@@ -1131,7 +1157,9 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
     const qualified = a => a.score >= 1;
     const anyQualified = amounts.some(qualified);
-    const amountsIn = c => amounts.filter(a => a.i0 >= c.a && a.i1 < c.b && (anyQualified ? qualified(a) : a.score >= 0));
+    const anyNonNeg = amounts.some(a => a.score >= 0);
+    const amountsIn = c => amounts.filter(a => a.i0 >= c.a && a.i1 < c.b &&
+      (anyQualified ? qualified(a) : anyNonNeg ? a.score >= 0 : (!a.qty && amounts.filter(x => !x.qty).length === 1)));
 
     // fusiona cláusulas sin importe con la anterior (o la siguiente)
     const merged = [];
@@ -1192,9 +1220,15 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     const clauseDates = merged.map(c => { const [s, e] = spanOf(c); return detectDate(norm.slice(s, e), now); });
     const distinctDates = new Set(clauseDates.filter(Boolean).map(ymd));
     let carryDate = null;
+    const opensWithDate = merged.map(c => { const [s0] = spanOf(c); const m = new RegExp('^\\s*' + DATE_RE.source).exec(norm.slice(s0)); return !!m; });
+    const endsWithDate = new RegExp('(?:' + DATE_RE.source + ')\\W*$').test(norm);
     const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     let prevCategory = null;
+    // "con QR: luz 130 y agua 60": el método dicho antes del primer importe vale para todos
+    const firstAmt = amounts.length ? toks[amounts[0].i0].start : norm.length;
+    const qrM = new RegExp(METHOD_RE.source).exec(norm);
+    const qrUpfront = !!(qrM && qrM.index < firstAmt && merged.length > 1);
     const items = merged.slice(0, 20).map((c, ci) => {
       const [s, e] = spanOf(c);
       const cNorm = norm.slice(s, e);
@@ -1244,8 +1278,17 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
           const unitPrice = (aft && aft.t === 'cada' && aft2 && /^(uno|una)$/.test(aft2.t)) ||
             (bef && bef.t === 'a' && (!aft || aft.kind === 'punct' || /^(el|la|cada|c|por)$/.test(aft.t) || curOf(aft)));
           if (unitPrice) {
+            let qv = null;
             const q = amounts.find(a => a.i0 >= c.a && a.i1 < pick.i0 && a.score < 1 && Number.isInteger(a.value) && a.value >= 2 && a.value <= 50);
-            if (q) amount = round2(q.value * pick.value);
+            if (q) qv = q.value;
+            else {
+              for (let k = c.a; k < pick.i0; k++) {
+                const t = toks[k], u = toks[k + 1];
+                if (t.kind === 'num' && u && UNIT_NOUNS.has(u.t)) { const v = digitValue(t.t); if (v >= 2 && v <= 100 && Number.isInteger(v)) { qv = v; break; } }
+                if (t.kind === 'word' && t.t in UNITS && u && UNIT_NOUNS.has(u.t) && UNITS[t.t] >= 2) { qv = UNITS[t.t]; break; }
+              }
+            }
+            if (qv) amount = round2(qv * pick.value);
           }
           if (currency !== 'BOB') { amountBs = round2(amount * rates[currency]); estimated = true; rateUsed = rates[currency]; }
           else amountBs = amount;
@@ -1255,7 +1298,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       // spans a quitar para la descripción: todos los importes/monedas de la cláusula
       const drop = amounts.filter(a => a.i0 >= c.a && a.i1 < c.b).map(a => [toks[a.i0].start, toks[a.i1].end]).concat(corrSpans.filter(([a, b]) => a >= s && b <= e));
       const methodM = METHOD_RE.exec(cNorm);
-      const method = methodM ? 'qr' : 'cash';
+      const method = methodM || qrUpfront ? 'qr' : 'cash';
       let who = whoMentions[ci] || (distinctWho.size === 1 ? [...distinctWho][0] : null);
       let category = null, guessed = false;
       if (tinfo.type === 'expense') {
@@ -1280,7 +1323,14 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         if (/^(dinero|plata|efectivo)( del)?$/i.test(note)) note = tinfo.source === 'atm' ? 'Cajero' : 'Entrada de efectivo';
       }
       let date;
-      if (distinctDates.size <= 1) date = globalDate || today0;
+      if (distinctDates.size <= 1) {
+        // "pan 10 y ayer leche 12": una fecha que abre una cláusula posterior vale desde ahí;
+        // "pan 10 y leche 12, ayer" (al final) o "ayer: pan 10…" vale para todo
+        const di = clauseDates.findIndex(Boolean);
+        if (di > 0 && di < merged.length - 1 + 1 && opensWithDate[di] && di !== merged.length - 1) date = ci >= di ? clauseDates[di] : today0;
+        else if (di > 0 && opensWithDate[di] && di === merged.length - 1 && merged.length > 1 && !endsWithDate) date = ci >= di ? clauseDates[di] : today0;
+        else date = globalDate || today0;
+      }
       else { if (clauseDates[ci]) carryDate = clauseDates[ci]; date = carryDate || today0; }
       if (amountBs !== null && amountBs > 1e8) amountBs = null;
       return {
@@ -1362,7 +1412,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     { id: 'comida', name: 'Comida', hint: 'Súper, mercado, feria', color: '#2f9e44' },
     { id: 'resto', name: 'Restaurantes', hint: 'Restaurantes y cafés', color: '#e8590c' },
     { id: 'transporte', name: 'Transporte', hint: 'Taxis, trufis, viajes a Santa Cruz', color: '#0a72e8' },
-    { id: 'personal', name: 'Personal del hogar', short: 'Ayuda en casa', hint: 'Limpieza, niñera', color: '#8e44c9' },
+    { id: 'personal', name: 'Ayuda en casa', hint: 'Limpieza, niñera, personal del hogar', color: '#8e44c9' },
     { id: 'casa', name: 'Casa', hint: 'Alquiler, luz, agua, gas, internet', color: '#9c6b3c' },
     { id: 'salud', name: 'Salud', hint: 'Farmacia, médico', color: '#e03131' },
     { id: 'ocio', name: 'Ocio', hint: 'Excursiones, actividades, viajes', color: '#6741d9' },
@@ -2025,8 +2075,8 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     clearTimeout(toastTimer);
     toastTimer = setTimeout(hideToast, actLabel ? 7000 : 3200);
   }
-  function hideToast() {
-    if ($('#toast').contains(document.activeElement)) { const m = $('#mic'); if (m) m.focus({ preventScroll: true }); }
+  function hideToast(silent) {
+    if (!silent && $('#toast').contains(document.activeElement)) restoreFocus(null);
     clearTimeout(toastTimer); $('#toast').classList.remove('show'); $('#toast-act').hidden = true; $('#toast-act').onclick = null; }
 
   // ---------------------------------------------------------------- hoja
@@ -2035,7 +2085,8 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     const wasOpen = !!S.sheet;
     const prevKind = wasOpen ? S.sheet.kind : null;
     S.sheet = state;
-    if (!wasOpen) { lastFocus = document.activeElement; hideToast(); }
+    if (!wasOpen) lastFocus = document.activeElement;
+    hideToast(true);
     // 2) cada hoja nueva empieza arriba (se ve lo que se ha oído)
     const resetScroll = !wasOpen || prevKind !== state.kind;
     renderSheet();
@@ -2046,13 +2097,24 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       $('#sheet-body').scrollTop = 0;
       sh.classList.add('show'); sc.classList.add('show');
       document.body.classList.add('sheet-open');
-      $$('#app, .tabbar').forEach(e => e.setAttribute('aria-hidden', 'true'));
+      $$('#app, .tabbar').forEach(e => { e.setAttribute('aria-hidden', 'true'); e.inert = true; });
       setTimeout(() => {
         const f = state.focus ? $(state.focus, sh) : null;
         (f || $('#sheet-body')).focus({ preventScroll: true });
       }, 60);
     }
     if (resetScroll) $('#sheet-body').scrollTop = 0;
+    if (wasOpen && prevKind !== state.kind) {
+      const f = state.focus ? $(state.focus, $('#sheet')) : null;
+      (f || $('#sheet-title')).focus({ preventScroll: true });
+    }
+  }
+  // Devuelve el foco a algo visible de la pantalla actual
+  function restoreFocus(el) {
+    const visible = x => x && document.contains(x) && x !== document.body && x.getClientRects().length > 0 && !x.closest('[hidden]') && !x.disabled;
+    let target = visible(el) ? el : null;
+    if (!target) target = S.tab === 'home' ? $('#mic') : $('#scr-' + S.tab + ' h1');
+    try { target.focus({ preventScroll: true }); } catch (e) { /* */ }
   }
   function closeSheet() {
     if (!S.sheet) return;
@@ -2060,9 +2122,9 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     const sh = $('#sheet'), sc = $('#scrim');
     sh.classList.remove('show'); sc.classList.remove('show');
     document.body.classList.remove('sheet-open');
-    $$('#app, .tabbar').forEach(e => e.removeAttribute('aria-hidden'));
+    $$('#app, .tabbar').forEach(e => { e.removeAttribute('aria-hidden'); e.inert = false; });
     setTimeout(() => { if (!S.sheet) { sh.hidden = true; sc.hidden = true; $('#sheet-body').innerHTML = ''; } }, 300);
-    if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus({ preventScroll: true }); } catch (e) { /* */ } }
+    restoreFocus(lastFocus);
   }
   function focusKey(el, root) {
     if (!el || !root.contains(el) || el === root) return null;
@@ -2226,7 +2288,16 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       return;
     }
     if (act === 'toggle') { const d = st.items[+b.dataset.i]; d.open = !d.open; renderSheet(); const m = $('.mini[data-i="' + b.dataset.i + '"]'); if (m) m.focus({ preventScroll: true }); return; }
-    if (act === 'remove') { st.items.splice(+b.dataset.i, 1); if (!st.items.length) closeSheet(); else { if (st.items.length === 1) st.items[0].open = true; renderSheet(); } return; }
+    if (act === 'remove') {
+      const i = +b.dataset.i;
+      st.items.splice(i, 1);
+      if (!st.items.length) { closeSheet(); return; }
+      if (st.items.length === 1) st.items[0].open = true;
+      renderSheet();
+      const next = $('.mini[data-i="' + Math.min(i, st.items.length - 1) + '"]') || $('#amt-0') || $('#sheet-ok');
+      if (next) next.focus({ preventScroll: true });
+      return;
+    }
     if (act === 'delete') {
       if (!S.canWrite) return;
       if (!st.armed) { st.armed = true; renderSheet(); setTimeout(() => { if (S.sheet === st && st.armed) { st.armed = false; renderSheet(); } }, 4000); return; }
@@ -2234,7 +2305,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       closeSheet();
       if (!prev) { toast('Este movimiento ya no existe.'); return; }
       Store.del(id).then(() => {
-        toast('Movimiento eliminado', 'Deshacer', () => Store.put(id, prev).catch(e2 => toast(errMsg(e2))));
+        toast('Movimiento eliminado', 'Deshacer', () => Store.put(id, prev).then(() => toast('Movimiento restaurado')).catch(e2 => toast(errMsg(e2))));
         setTimeout(() => { const b2 = $('#toast-act'); if (!b2.hidden) b2.focus({ preventScroll: true }); }, 320);
       })
         .catch(err => toast(errMsg(err)));
@@ -2345,7 +2416,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     h += '<div class="set-sec"><h3>Este móvil</h3><div class="set-card" style="padding:12px 14px"><div class="seg" role="group" aria-label="Quién usa este móvil">' +
       PEOPLE.map(p => '<button type="button" data-set-me="' + p + '" aria-pressed="' + (S.me === p) + '">Soy ' + p + '</button>').join('') +
       '</div></div><p class="foot">Sirve para entender «para mí» y para saber quién anotó cada gasto.</p></div>';
-    h += '<div class="set-sec"><h3>Efectivo en mano</h3><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>' + (waiting ? 'Esperando datos…' : 'Qullqi calcula ' + (bal < 0 ? '−' : '') + esc(money(bal))) + '</small></label>' +
+    h += '<div class="set-sec"><h3>Efectivo en mano</h3><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>' + (waiting ? 'Esperando datos…' : 'Qullqi calcula <span class="nowrap">' + (bal < 0 ? '−' : '') + esc(money(bal)) + '</span>') + '</small></label>' +
       '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="Bs"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '/>' +
       '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
       '<p class="foot">Cuenta los billetes y escribe lo que tenéis. Se anota un ajuste por la diferencia.</p></div>';
@@ -2389,7 +2460,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     if (b.dataset.act === 'adjust') {
       const inp = $('#adj-in');
       const target = parseCashInput(inp.value);
-      if (target === null) { toast('Escribe cuánto efectivo tenéis.'); inp.focus(); return; }
+      if (target === null) { toast(/^\s*[-−]/.test(inp.value) ? 'El efectivo no puede ser negativo.' : 'Escribe cuánto efectivo tenéis.'); inp.focus(); return; }
       inp.value = '';
       const okSet = await setCashTo(target);
       if (S.sheet === st) renderSheet();
@@ -2433,7 +2504,10 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       S.pendingAdjust = { id, target };
       await Store.put(id, doc);
       S.pendingAdjust = null;
-      toast('Efectivo: ' + money(target), 'Deshacer', () => Store.del(id).catch(e2 => toast(errMsg(e2))));
+      toast('Efectivo: ' + money(target), 'Deshacer', () => Store.del(id).then(() => {
+        if (initial) ls.set('qullqi.started', '0');
+        toast('Deshecho');
+      }).catch(e2 => toast(errMsg(e2))));
       return true;
     } catch (err) { toast(errMsg(err, 'Inténtalo otra vez')); return false; }
     finally { S.adjusting = false; }
@@ -2618,7 +2692,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
     $('#mic').addEventListener('click', onMic);
     $('#say').addEventListener('input', updateSend);
-    const sendTyped = () => { const v = $('#say').value; if (v.trim()) { $('#say').blur(); processText(v); } };
+    const sendTyped = () => { const v = $('#say').value; if (v.trim()) { processText(v); lastFocus = $('#say'); } };
     $('#typebar').addEventListener('submit', e => { e.preventDefault(); sendTyped(); });
     $('#say').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); sendTyped(); } });
     $('#send').addEventListener('click', e => { e.preventDefault(); sendTyped(); });
@@ -2647,13 +2721,18 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       if (v === null) { toast('Escribe cuánto efectivo tenéis, o empieza desde 0.'); inp.focus(); return; }
       if (v === 0) { ls.set('qullqi.started', '1'); renderHome(); return; }
       S.starting = true;
-      try { if (await setCashTo(v, 'Efectivo inicial')) ls.set('qullqi.started', '1'); } finally { S.starting = false; }
+      try { if (await setCashTo(v, 'Efectivo inicial')) { ls.set('qullqi.started', '1'); restoreFocus($('#mic')); } } finally { S.starting = false; }
     };
     document.addEventListener('submit', e => { if (e.target.id === 'start-form') { e.preventDefault(); startNow(); } });
     document.addEventListener('keydown', e => { if (e.target && e.target.id === 'start-in' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); startNow(); } });
     document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#start-go')) { e.preventDefault(); startNow(); } });
 
-    $('#hist-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.hist.f = b.dataset.f; S.hist.limit = 80; renderHist(); });
+    $('#hist-seg').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      S.hist.f = b.dataset.f; S.hist.limit = 80;
+      if (b.dataset.f !== 'expense') { S.hist.cat = null; S.hist.who = null; S.hist.month = null; }
+      renderHist();
+    });
     let qTimer = null;
     $('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.hist.q = e.target.value; S.hist.limit = 80; renderHist(); }, 150); });
     $('#scr-hist').addEventListener('click', e => {
@@ -2674,6 +2753,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     sb.addEventListener('input', onEntryInput);
     sb.addEventListener('change', onSettingsChange);
     sb.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && S.sheet && S.sheet.kind === 'cat' && e.target.id === 'cat-name') { e.preventDefault(); saveCat(); return; }
       if (e.key === 'Enter' && S.sheet && S.sheet.kind === 'entry' && e.target.tagName === 'INPUT' && e.target.type !== 'date') { e.preventDefault(); saveEntry(); }
     });
     $('#sheet-ok').addEventListener('click', () => {
@@ -2689,7 +2769,8 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     // focus trap básico
     $('#sheet').addEventListener('keydown', e => {
       if (e.key !== 'Tab' || !S.sheet) return;
-      const f = $$('#sheet button:not([disabled]):not([hidden]), #sheet input:not([disabled]), #sheet textarea').filter(x => x.offsetParent !== null);
+      const f = $$('#sheet button:not([disabled]):not([hidden]), #sheet input:not([disabled]), #sheet textarea:not([disabled]), #sheet [tabindex="0"]')
+        .filter(x => x.offsetParent !== null && x.tabIndex >= 0 && getComputedStyle(x).visibility !== 'hidden');
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
