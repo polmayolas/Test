@@ -224,6 +224,30 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓', msg); else { failures
     ok(await p5.locator('[data-cat-edit]').count() > 5, 'Ajustes abre con palabras clave mal formadas');
   }
 
+  console.log('14) Regresiones de diseño');
+  {
+    const c6 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p6 = await newPage(c6, { uid: 'x1' });
+    await p6.waitForTimeout(200);
+    await p6.fill('#say', 'pan 10'); await p6.press('#say', 'Enter');
+    await p6.waitForSelector('#sheet.show'); await p6.waitForTimeout(300);
+    await p6.click('#sheet-ok'); await p6.waitForSelector('#sheet', { state: 'hidden' });
+    ok(await p6.locator('#toast.show #toast-act:not([hidden])').count() === 1, 'aviso con Deshacer tras guardar');
+    await p6.fill('#say', 'taxi 15'); await p6.press('#say', 'Enter');
+    await p6.waitForSelector('#sheet.show'); await p6.waitForTimeout(300);
+    ok(await p6.locator('#toast.show').count() === 0, 'el aviso se oculta al abrir la hoja siguiente');
+    await p6.click('#sheet-cancel'); await p6.waitForSelector('#sheet', { state: 'hidden' });
+    await p6.click('#btn-settings'); await p6.waitForSelector('#sheet.show'); await p6.waitForTimeout(300);
+    await p6.evaluate(() => { document.querySelector('#sheet-body').scrollTop = 400; });
+    await p6.click('#sheet-ok'); await p6.waitForSelector('#sheet', { state: 'hidden' });
+    await p6.fill('#say', 'café 12'); await p6.press('#say', 'Enter');
+    await p6.waitForSelector('#sheet.show'); await p6.waitForTimeout(300);
+    ok(await p6.evaluate(() => document.querySelector('#sheet-body').scrollTop) === 0, 'la hoja nueva empieza arriba');
+    const broken = await p6.evaluate(() => [...document.querySelectorAll('.cat > span:last-child')].filter(e => e.getClientRects().length > 1 || e.scrollWidth > e.clientWidth + 1).map(e => e.textContent));
+    ok(broken.length === 0, 'categorías sin cortes a mitad de palabra ' + JSON.stringify(broken));
+    ok(await p6.evaluate(() => document.documentElement.lang) === 'es', 'idioma de la página: es');
+  }
+
   // overflow horizontal
   for (const p of [a, s]) {
     const ov = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

@@ -106,5 +106,23 @@ check('café con leche 14', { category: 'resto' });
 check('megas para el celular 20', { category: 'casa' });
 check('x'.repeat(5000) + ' 20', { amountBs: null });
 
+// --- tercera ronda
+check('gasolina para 120 km, 100 bolivianos', { amountBs: 100, category: 'transporte' });
+check('taxi a la calle Bolívar 25, 10 pesos', { amountBs: 10 });
+check('taxi de 15 km, 30', { amountBs: 30 });
+check('pasaje en flota 70 para Sol', { amountBs: 70, who: 'sol' });
+check('café en la plaza 15', { amountBs: 15 });
+check('la abuela le regaló 200 a Noah', { type: 'cash_in', amountBs: 200 });
+check('regalo para la profesora 60', { type: 'expense', amountBs: 60 });
+check('nos llegaron 2000 de España', { type: 'cash_in', amountBs: 2000 });
+check('Paul pagó el taxi, 20', { who: 'familia', category: 'transporte' });
+check('gafas de sol 100', { who: 'familia', category: 'compras' });
+check('el 15 de noviembre farmacia 40', { date: '2026-11-15', amountBs: 40 });
+check('el 18/11 pan 10', { date: '2026-11-18', amountBs: 10 });
+check('taxi a la calle 24 de septiembre 15', { amountBs: 15, date: '2026-11-21' });
+check('Almuerzo 30 para Sol y 30 para mí', [{ who: 'sol' }, { who: 'pol' }]);
+check('comimos en la pensión 45', { category: 'resto' });
+check('me dieron 980 bolivianos por 100 dólares', { type: 'cash_in', source: 'exchange', amountBs: 980 });
+
 console.log(`\n${pass} ok, ${fail} fallos`);
 process.exit(fail ? 1 : 0);

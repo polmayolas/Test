@@ -50,7 +50,7 @@
     { id: 'comida', name: 'Comida', hint: 'Súper, mercado, feria', color: '#2f9e44' },
     { id: 'resto', name: 'Restaurantes', hint: 'Restaurantes y cafés', color: '#e8590c' },
     { id: 'transporte', name: 'Transporte', hint: 'Taxis, trufis, viajes a Santa Cruz', color: '#0a72e8' },
-    { id: 'personal', name: 'Personal del hogar', short: 'Personal', hint: 'Limpieza, niñera', color: '#8e44c9' },
+    { id: 'personal', name: 'Personal del hogar', short: 'Ayuda en casa', hint: 'Limpieza, niñera', color: '#8e44c9' },
     { id: 'casa', name: 'Casa', hint: 'Alquiler, luz, agua, gas, internet', color: '#9c6b3c' },
     { id: 'salud', name: 'Salud', hint: 'Farmacia, médico', color: '#e03131' },
     { id: 'ocio', name: 'Ocio', hint: 'Excursiones, actividades, viajes', color: '#6741d9' },
@@ -604,7 +604,7 @@
     const n = perDay.length, max = niceMax(Math.max.apply(null, perDay));
     const pw = W - L - R, ph = H - T - B, band = pw / n, bw = Math.max(3, band * 0.64);
     const y = v => T + ph - (v / max) * ph;
-    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Gasto por día del mes">';
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="group" aria-label="Gasto por día del mes. Recorre las barras con el tabulador.">';
     [0, max / 2, max].forEach((g, i) => {
       s += '<line class="' + (i ? 'grid' : 'base') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(g) + '" y2="' + y(g) + '"/>';
       s += '<text class="axis" x="' + (L - 6) + '" y="' + (y(g) + 3.5) + '" text-anchor="end">' + esc(num(g)) + '</text>';
@@ -665,27 +665,32 @@
   // ---------------------------------------------------------------- toast
   let toastTimer = null;
   function toast(msg, actLabel, act) {
+    if (S.sheet) actLabel = null; // con una hoja abierta, sin acciones que se puedan tocar por error
     const el = $('#toast'), b = $('#toast-act');
     $('#toast-msg').textContent = msg;
     if (actLabel) { b.textContent = actLabel; b.hidden = false; b.onclick = () => { hideToast(); act(); }; }
     else { b.hidden = true; b.onclick = null; }
     el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(hideToast, actLabel ? 5000 : 3200);
+    toastTimer = setTimeout(hideToast, actLabel ? 7000 : 3200);
   }
-  function hideToast() { $('#toast').classList.remove('show'); }
+  function hideToast() { clearTimeout(toastTimer); $('#toast').classList.remove('show'); $('#toast-act').hidden = true; $('#toast-act').onclick = null; }
 
   // ---------------------------------------------------------------- hoja
   let lastFocus = null;
   function openSheet(state) {
     const wasOpen = !!S.sheet;
+    const prevKind = wasOpen ? S.sheet.kind : null;
     S.sheet = state;
-    if (!wasOpen) lastFocus = document.activeElement;
+    if (!wasOpen) { lastFocus = document.activeElement; hideToast(); }
+    // 2) cada hoja nueva empieza arriba (se ve lo que se ha oído)
+    const resetScroll = !wasOpen || prevKind !== state.kind;
     renderSheet();
     const sh = $('#sheet'), sc = $('#scrim');
     if (!wasOpen) {
       sh.hidden = false; sc.hidden = false;
       void sh.offsetWidth;
+      $('#sheet-body').scrollTop = 0;
       sh.classList.add('show'); sc.classList.add('show');
       document.body.classList.add('sheet-open');
       $$('#app, .tabbar').forEach(e => e.setAttribute('aria-hidden', 'true'));
@@ -694,6 +699,7 @@
         (f || $('#sheet-body')).focus({ preventScroll: true });
       }, 60);
     }
+    if (resetScroll) $('#sheet-body').scrollTop = 0;
   }
   function closeSheet() {
     if (!S.sheet) return;
@@ -856,7 +862,10 @@
       if (!st.armed) { st.armed = true; renderSheet(); setTimeout(() => { if (S.sheet === st && st.armed) { st.armed = false; renderSheet(); } }, 4000); return; }
       const id = st.editId, prev = S.txns.get(id);
       closeSheet();
-      Store.del(id).then(() => toast('Movimiento eliminado', 'Deshacer', () => Store.put(id, prev).catch(e2 => toast(errMsg(e2)))))
+      Store.del(id).then(() => {
+        toast('Movimiento eliminado', 'Deshacer', () => Store.put(id, prev).catch(e2 => toast(errMsg(e2))));
+        setTimeout(() => { const b2 = $('#toast-act'); if (!b2.hidden) b2.focus({ preventScroll: true }); }, 320);
+      })
         .catch(err => toast(errMsg(err)));
       return;
     }
@@ -964,7 +973,7 @@
       PEOPLE.map(p => '<button type="button" data-set-me="' + p + '" aria-pressed="' + (S.me === p) + '">Soy ' + p + '</button>').join('') +
       '</div></div><p class="foot">Sirve para entender «para mí» y para saber quién anotó cada gasto.</p></div>';
     h += '<div class="set-sec"><h4>Efectivo en mano</h4><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>Qullqi calcula ' + esc(money(bal)) + '</small></label>' +
-      '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="' + esc(num(bal < 0 ? 0 : bal)) + '"' + (ro || S.adjusting ? ' disabled' : '') + '/>' +
+      '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="Bs"' + (ro || S.adjusting ? ' disabled' : '') + '/>' +
       '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
       '<p class="foot">Cuenta los billetes y escribe lo que tenéis. Se anota un ajuste por la diferencia.</p></div>';
     h += '<div class="set-sec"><h4>Tipo de cambio</h4><div class="set-card">' +
@@ -986,7 +995,7 @@
     $$('[data-cat-edit]', body).forEach(b => {
       const c = cats().find(x => x.id === b.dataset.catEdit); if (!c) return;
       $('.cn', b).textContent = c.name;
-      $('.ck', b).textContent = c.keywords.length ? c.keywords.join(', ') : (c.hint || 'Sin palabras clave');
+      $('.ck', b).textContent = c.keywords.length ? 'Tus palabras: ' + c.keywords.join(', ') : (c.hint ? 'Ya reconoce: ' + c.hint.toLowerCase() : 'Sin palabras clave');
     });
   }
   async function onSettingsClick(e) {
@@ -1028,7 +1037,8 @@
     try {
       const diff = r2(target - balance(allTxns()));
       if (!diff) { toast('El efectivo ya cuadra.'); return true; }
-      const id = newId();
+      // el efectivo inicial usa un id fijo: si los dos móviles lo indican a la vez, queda uno solo
+      const id = note === 'Efectivo inicial' ? 'efectivo-inicial' : newId();
       const doc = { type: 'adjust', amount: diff, date: todayStr(), note: note || 'Ajuste de efectivo', createdAt: Date.now(), updatedAt: Date.now(), by: S.me || null };
       await Store.put(id, doc);
       toast('Efectivo: ' + money(target), 'Deshacer', () => Store.del(id).catch(e2 => toast(errMsg(e2))));
@@ -1285,6 +1295,7 @@
 
   // ---------------------------------------------------------------- arranque
   async function boot() {
+    try { document.documentElement.lang = 'es'; } catch (e) { /* */ }
     wire();
     renderMic();
     const c = window.claude;

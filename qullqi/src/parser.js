@@ -187,14 +187,14 @@
   // peso 3 = lugar / señal fuerte; 1 = artículo
   const CATS = [
     { id: 'comida', kw: { 3: 'supermercado super súper mercado feria tienda almacen almacén despensa verduleria verdulería carniceria carnicería panaderia panadería fruteria frutería minimarket abarrotes compra del mes compras de comida comida para casa ketal hipermaxi fidalga', 1: 'kilo kilos naranja naranjas mandarina mandarinas yuca choclo botellon de agua agua mineral comida verduras verdura fruta frutas pan leche huevos huevo carne pollo queso arroz aceite fideos azucar azúcar harina yogur cereal papas papa tomates tomate cebolla platano plátano manzanas palta paltas mantequilla jamon jamón botellon botellón garrafon garrafón cafe molido galletas snacks lentejas frijoles pescado verdurita abarrote' } },
-    { id: 'resto', kw: { 4: 'cafe con leche café con leche', 3: 'restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería pension pensión comedor', 1: 'api sonso zonzo tucumana tucumanas silpancho majadito saice sopa anticucho anticuchos broaster pollo frito mocochinchi chicha refresco masaco cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
+    { id: 'resto', kw: { 4: 'cafe con leche café con leche', 3: 'api sonso zonzo tucumana tucumanas silpancho majadito anticucho anticuchos salteña salteñas saltena saltenas pique desayuno desayunamos comimos cenamos almorzamos para llevar restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería pension pensión comedor', 1: 'mani maní chicharron chicharrón api sonso zonzo tucumana tucumanas silpancho majadito saice sopa anticucho anticuchos broaster pollo frito mocochinchi chicha refresco masaco cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
     { id: 'transporte', kw: { 3: 'taxi taxis trufi micro bus buses colectivo flota mototaxi uber gasolina combustible diesel diésel peaje transfer traslado pasaje pasajes parqueo transporte surtidor nafta taxista mecanico mecánico taller llanta llantas gomeria gomería surubi vagoneta', 4: 'cambio de aceite aceite del auto', 1: 'auto coche camioneta moto viaje a santa cruz a santa cruz de santa cruz aeropuerto viru viru' } },
     { id: 'personal', kw: { 3: 'limpieza señora de la limpieza senora de la limpieza limpiadora empleada empleada domestica nana niñera ninera cuidadora canguro jardinero jardinera chica que cuida cuida a noah cuidar a noah cuidado de noah sueldo planchado lavado de ropa lavandera que limpia nos limpia', 1: 'ayuda' } },
-    { id: 'casa', kw: { 4: 'productos de limpieza articulos de limpieza', 3: 'alquiler renta luz electricidad agua potable factura del agua gas garrafa internet wifi telefono teléfono agua cre cotas cooperativa de agua saguapac megas recarga credito para el celular crédito para el celular ferreteria ferretería reparacion reparación arreglo plomero electricista cerrajero muebles mueble lavanderia lavandería tigo entel viva', 1: 'casa hogar bombilla foco detergente lavandina escoba papel higienico papel higiénico' } },
+    { id: 'casa', kw: { 4: 'productos de limpieza articulos de limpieza', 3: 'alquiler renta luz electricidad agua potable factura del agua gas garrafa internet wifi telefono teléfono agua cre cotas cooperativa de agua saguapac megas recarga credito para el celular crédito para el celular ferreteria ferretería reparacion reparación arreglo plomero electricista cerrajero muebles mueble lavanderia lavandería tigo entel viva', 1: 'pintura cemento clavos casa hogar bombilla foco detergente lavandina escoba papel higienico papel higiénico' } },
     { id: 'salud', kw: { 3: 'farmacia medico médico doctor doctora medicina medicinas medicamento medicamentos dentista hospital clinica clínica analisis análisis laboratorio consulta pediatra medica médica posta centro de salud seguro medico seguro médico vacuna vacunas psicologo psicólogo fisioterapia', 1: 'jarabe antibiotico antibiótico curitas termometro termómetro pastillas ibuprofeno paracetamol vitaminas' } },
     { id: 'ocio', kw: { 3: 'ocio excursion excursión tour cine fiesta piscina museo paseo cabalgata entrada entradas concierto amboro amboró el fuerte cuevas pajcha la pajcha vinedo viñedo bodega yoga clase de clases de actividad hotel hostal cabaña cabana alojamiento vacaciones', 1: 'juego juegos libro libros' } },
     { id: 'noah', kw: { 3: 'pañales panales toallitas guarderia guardería juguete juguetes kinder colegio escuela', 1: 'biberon biberón chupete papilla leche de formula leche de fórmula ropa de noah' } },
-    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador regalo regalos', 1: 'celular camisa camisas polera poleras chamarra sandalias chinelas bloqueador protector solar camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
+    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador regalo regalos', 1: 'gafas lentes anteojos bicicleta tela celular camisa camisas polera poleras chamarra sandalias chinelas bloqueador protector solar camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
     { id: 'otros', kw: { 3: 'comision comisión impuesto multa tramite trámite donacion donación', 1: '' } }
   ];
 
@@ -207,7 +207,7 @@
     'viru viru', 'senora de la limpieza', 'empleada domestica', 'chica que cuida', 'cuida a noah', 'cuidar a noah',
     'cuidado de noah', 'lavado de ropa', 'productos de limpieza', 'articulos de limpieza', 'agua potable',
     'factura del agua', 'credito para el celular', 'papel higienico', 'seguro medico', 'el fuerte', 'la pajcha',
-    'clase de', 'clases de', 'cafe con leche', 'cambio de aceite', 'aceite del auto', 'botellon de agua', 'agua mineral', 'pollo frito', 'cooperativa de agua', 'centro de salud', 'que limpia', 'nos limpia', 'protector solar', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
+    'clase de', 'clases de', 'cafe con leche', 'para llevar', 'cambio de aceite', 'aceite del auto', 'botellon de agua', 'agua mineral', 'pollo frito', 'cooperativa de agua', 'centro de salud', 'que limpia', 'nos limpia', 'protector solar', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
   ];
 
   function buildIndex(extra) {
@@ -260,7 +260,11 @@
   }
 
   // ---------- quién ----------
+  const WHO_SUBJ_RE = /\b(sol|pol|paul|pool|noah|noa) (?:pago|pagaron|compro|gasto|dice|dijo|fue|trajo|pidio|saco|cambio|tiene|quiere|me dijo|nos dijo|ya)\b/g;
+  const WHO_WITH_RE = /\bcon (?:sol|pol|paul|pool)\b/g;
+  const SUN_RE = /\b(?:gafas|lentes|anteojos|crema|protector|bloqueador|sombrero|gorra) (?:de|del|para el|contra el) sol\b/g;
   function detectWho(norm, me) {
+    norm = norm.replace(WHO_SUBJ_RE, ' ').replace(WHO_WITH_RE, ' ').replace(SUN_RE, ' ');
     const has = re => re.test(norm);
     const noah = has(/\b(noah|noa|noe|(?:el|del|al) (?:nene|bebe|peque|nino)|nuestro hijo|mi hijo)\b/);
     const fam = has(/\b(toda la familia|la familia|familia|familiar|todos|los tres)\b/);
@@ -284,7 +288,9 @@
 
   // ---------- fecha ----------
   const DAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-  const DATE_RE = /\b(hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) (?:dias?|semanas?))\b/g;
+  const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+  const MONTH_RE = '(?:' + MONTHS.join('|') + ')';
+  const DATE_RE = /\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:el )?(?:dia )?\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|el dia \d{1,2}|hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) (?:dias?|semanas?))\b/g;
   function detectDate(norm, now) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let m;
@@ -292,6 +298,10 @@
     let off = null;
     while ((m = re.exec(norm))) {
       const s = m[1];
+      const before = norm.slice(Math.max(0, m.index - 12), m.index);
+      if (/\b(?:calle|avenida|av|barrio|plaza|colegio|calle el|avenida el) $/.test(before) && /\d/.test(s)) continue;
+      const abs = absDate(s, d);
+      if (abs) { off = Math.round((d - abs) / 864e5); continue; }
       if (s === 'hoy' || s.startsWith('esta ')) off = 0;
       else if (s === 'ayer' || s === 'anoche') off = 1;
       else if (s === 'anteayer' || s === 'antier' || s === 'antes de ayer') off = 2;
@@ -305,8 +315,28 @@
       }
     }
     if (off === null) return null;
-    d.setDate(d.getDate() - Math.min(off, 60));
+    d.setDate(d.getDate() - Math.min(off, 400));
     return d;
+  }
+
+  // "15 de noviembre", "el día 18", "18/11": nunca en el futuro (se toma el mes o año anterior)
+  function absDate(s, today) {
+    let m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/.exec(s);
+    let day, mon, year = null;
+    if (m) { day = +m[1]; mon = +m[2] - 1; if (m[3]) year = m[3].length === 2 ? 2000 + +m[3] : +m[3]; }
+    else if ((m = /(\d{1,2}) de ([a-z]+)$/.exec(s))) { day = +m[1]; mon = MONTHS.indexOf(m[2]); if (mon > 8) mon = m[2] === 'setiembre' ? 8 : mon - 1; }
+    else if ((m = /^el dia (\d{1,2})$/.exec(s))) { day = +m[1]; mon = today.getMonth(); }
+    else return null;
+    if (!(day >= 1 && day <= 31) || !(mon >= 0 && mon <= 11)) return null;
+    let y = year || today.getFullYear();
+    let r = new Date(y, mon, day);
+    if (r.getDate() !== day) return null;
+    if (!year && r > today) {
+      if (/^el dia/.test(s)) { r = new Date(y, mon - 1, day); if (r.getDate() !== day) return null; }
+      else r = new Date(y - 1, mon, day);
+    }
+    if (r > today || today - r > 400 * 864e5) return null;
+    return r;
   }
 
   // ---------- tipo ----------
@@ -318,6 +348,7 @@
   const ATM_VERB_RE = new RegExp('\\b(?:saque|sacamos|sacado|sacar|saco|retire|retiramos|retirado|retirar|retiro) ' + MONEY_OBJ);
   const ATM_BANK_RE = /\b(?:saque|sacamos|retire|retiramos)\b.*\bdel banco\b/;
   const OTHER_OBJ_RE = new RegExp('\\b(?:recibi|recibimos|me dieron|nos dieron|me dio|nos dio|me pasaron|nos pasaron|me prestaron|nos prestaron|ingrese|ingresamos) ' + MONEY_OBJ);
+  const OTHER_MORE_RE = new RegExp('\\b(?:(?:le|les|me|nos) (?:regalo|regalaron|dieron|dio|mando|mandaron|enviaron|envio)|(?:me|nos) (?:llego|llegaron|reembolsaron)|ingresos? de|gane|ganamos|premio de|encontre|encontramos) ' + MONEY_OBJ);
   const OTHER_ANY_RE = /\b(cobre|cobramos|me pagaron|nos pagaron|me devolvieron|nos devolvieron|me devolvio|nos devolvio|me regalaron|nos regalaron|devolucion|reembolso|reembolsaron|vendi|vendimos|casa de cambio)\b/;
   const EXCHANGE_RE = /\b(cambie|cambiamos|cambiado|cambiar|cambio|cambiaron|vendi|vendimos|casa de cambio)\b/;
   const FOREIGN_RE = /\b(dolares|dolar|usd|euros|euro|eur|verdes)\b|[$€]/;
@@ -327,13 +358,13 @@
 
   function detectType(norm) {
     const foreign = FOREIGN_RE.test(norm);
-    if (EXCHANGE_RE.test(norm) && (foreign || /casa de cambio/.test(norm))) {
+    if ((EXCHANGE_RE.test(norm) && (foreign || /casa de cambio/.test(norm))) || /\b(?:me|nos) dieron\b.*\bpor\b.*\b(?:dolares|euros|usd)\b/.test(norm)) {
       if (BUY_FOREIGN_RE.test(norm)) return { type: 'expense', source: null };
       return { type: 'cash_in', source: 'exchange' };
     }
     if (NOT_CASHIN_RE.test(norm)) return { type: 'expense', source: null };
     if (ATM_HARD.test(norm) || ATM_VERB_RE.test(norm) || ATM_BANK_RE.test(norm)) return { type: 'cash_in', source: 'atm' };
-    if (OTHER_OBJ_RE.test(norm) || OTHER_ANY_RE.test(norm)) return { type: 'cash_in', source: 'other' };
+    if (OTHER_OBJ_RE.test(norm) || OTHER_ANY_RE.test(norm) || OTHER_MORE_RE.test(norm)) return { type: 'cash_in', source: 'other' };
     return { type: 'expense', source: null };
   }
 
@@ -401,14 +432,19 @@
       toks.forEach((t, i) => { if (t.start >= m.index && t.end <= m.index + m[0].length) dropMask[i] = true; });
     }
     const NT = '(\\d{1,2}(?:[:.]\\d{2})?|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)';
-    const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
     const NOT_AMOUNT = [
+      /\b\d+(?:[.,]\d+)? ?(?:km|kms|kilometros?|metros?|mts?)\b/g,
+      /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g,
       new RegExp('\\b(?:a|de|desde|hasta|para) las? ' + NT + '(?: y (?:media|cuarto|\\d+))?\\b', 'g'),
       new RegExp('\\b' + NT + ' (?:de la (?:manana|tarde|noche)|en punto|horas?|hrs?|minutos?|mins?)\\b', 'g'),
       /\b(?:calle|avenida|av|km|kilometro|numero|nro|habitacion|talla|piso|linea|puesto|mesa para) \d+\b/g,
       new RegExp('\\bde ' + NT + ' a ' + NT + '(?=\\s+(?:\\d|horas|hrs))', 'g'),
       new RegExp('\\b\\d{1,2} de (?:' + MONTHS.join('|') + ')\\b', 'g')
     ];
+    // calle/avenida con nombre: "calle Bolívar 25" -> ese número no es (casi seguro) un importe
+    const demote = new Array(toks.length).fill(false);
+    { const re = /\b(?:calle|avenida|av|barrio)\s+(?:[a-z]+\s+){1,3}?(?:n(?:umero|ro)?\s+)?(\d+)\b/g; let mm;
+      while ((mm = re.exec(norm))) { const b = mm.index + mm[0].length; toks.forEach((t, i) => { if (t.kind === 'num' && t.end === b) demote[i] = true; }); } }
     // horas, calles, km, fechas: sus números no son importes
     for (const re of NOT_AMOUNT) {
       let mm; re.lastIndex = 0;
@@ -418,6 +454,7 @@
       }
     }
     let amounts = findAmounts(toks, dropMask);
+    amounts.forEach(a => { if (demote[a.numIdx] && !a.currency) a.score -= 3; });
     // (d) correcciones habladas: "25, no, 35" / "40, digo 45" -> vale el último
     const CORR_KEY = new Set(['no', 'perdon', 'digo', 'dicho', 'decir', 'sea', 'corrijo', 'error', 'rectifico']);
     const CORR_ALL = new Set([...CORR_KEY, 'mejor', 'quiero', 'o', 'es', 'son', 'eran', 'fueron', 'mas', 'bien', 'perdona', 'uy', 'ay', 'eh', 'este', 'que', 'en', 'realidad']);
@@ -485,6 +522,15 @@
     }
     if (!merged.length) merged.push({ a: 0, b: toks.length });
     else if (pending) merged[merged.length - 1].b = pending.b;
+    // "gasolina para 120 km, 100 bolivianos": una cláusula que solo trae un número (sin concepto)
+    // completa la anterior en vez de crear un movimiento fantasma
+    for (let k = merged.length - 1; k > 0; k--) {
+      const c = merged[k];
+      const words = toks.slice(c.a, c.b).filter(t => t.kind === 'word' && isContent(t.t) && !/^(qr|bs|pesos|bolivianos|centavos|efectivo|cash|tarjeta|eh|bueno|pues|vale)$/.test(t.t));
+      const ownSignal = toks.slice(c.a, c.b).some(t => t.kind === 'word' && (VERBS.has(t.t) || /^(cambie|cambiamos|saque|sacamos|retire|retiramos)$/.test(t.t)));
+      const cs = toks[c.a] ? toks[c.a].start : 0, ce = toks[c.b - 1] ? toks[c.b - 1].end : 0;
+      if (!words.length && !ownSignal && !detectWho(norm.slice(cs, ce), me)) { merged[k - 1].b = c.b; merged.splice(k, 1); }
+    }
 
     if (!isExch) {
       const out = [];
