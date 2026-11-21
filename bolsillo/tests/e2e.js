@@ -161,6 +161,69 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓', msg); else { failures
   await r.waitForTimeout(300);
   ok((await r.locator('.banner').innerText()).includes('Solo lectura'), 'aviso de solo lectura');
 
+  console.log('13) Regresiones de robustez');
+  {
+    // a) fallo a mitad de un guardado múltiple: reintento sin duplicados
+    const c1 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p1 = await newPage(c1, { uid: 'r1', failAfterSets: 1 });
+    await p1.waitForTimeout(200);
+    await p1.fill('#say', 'pan 10, leche 12 y taxi 15'); await p1.press('#say', 'Enter');
+    await p1.waitForSelector('#sheet.show'); await p1.waitForTimeout(300);
+    await p1.click('#sheet-ok'); await p1.waitForTimeout(300);
+    ok(await p1.locator('.item').count() === 2, 'tras fallo quedan 2 por guardar');
+    await p1.evaluate(() => { window.__mockCfg.failAfterSets = null; });
+    await p1.click('#sheet-ok'); await p1.waitForSelector('#sheet', { state: 'hidden' });
+    const n1 = await p1.evaluate(() => window.__qullqi.allTxns().length);
+    ok(n1 === 3, 'sin duplicados al reintentar (' + n1 + ')');
+    // b) configuración lenta: elegir quién soy no borra categorías de otros
+    const c2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const seed = await newPage(c2, { uid: 's1' });
+    await seed.waitForTimeout(200);
+    await seed.evaluate(() => window.__qullqi.Store.patchConfig({ customCats: { cx: { name: 'Deporte', keywords: ['gimnasio'], color: '#5856d6', createdAt: 1 } }, rates: { USD: 7.1 } }));
+    const slow = await newPage(c2, { uid: 's2', configDelay: 1200 });
+    await slow.waitForTimeout(300);
+    ok(await slow.locator('.whoami').count() === 0, 'no pregunta quién soy antes de cargar la configuración');
+    await slow.waitForTimeout(1200);
+    await slow.click('[data-me="Sol"]'); await slow.waitForTimeout(200);
+    const cfg = await slow.evaluate(() => JSON.parse(localStorage.getItem('__mockdb'))['config/main']);
+    ok(cfg.customCats && cfg.customCats.cx && cfg.rates.USD === 7.1 && cfg.members.s2 === 'Sol', 'la configuración compartida se conserva');
+    // c) doble toque en Ajustar con latencia
+    const c3 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p3 = await newPage(c3, { uid: 'a1', writeDelay: 300 });
+    await p3.waitForTimeout(200);
+    await p3.click('#btn-settings'); await p3.waitForSelector('#sheet.show'); await p3.waitForTimeout(300);
+    await p3.fill('#adj-in', '500');
+    await p3.evaluate(() => { const b = document.querySelector('[data-act="adjust"]'); b.click(); b.click(); });
+    await p3.waitForTimeout(900);
+    const bal3 = await p3.evaluate(() => window.__qullqi.balance(window.__qullqi.allTxns()));
+    ok(bal3 === 500, 'doble toque en Ajustar no duplica (' + bal3 + ')');
+    // d) almacenamiento local roto: no anuncia «guardado»
+    const c4 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p4 = await c4.newPage();
+    await p4.addInitScript(() => { Storage.prototype.setItem = function () { throw new Error('QuotaExceeded'); }; });
+    await p4.goto(url); await p4.waitForTimeout(200);
+    ok((await p4.locator('.banner').innerText()).includes('No se puede guardar'), 'aviso si el navegador no deja guardar');
+    await p4.fill('#say', '40 de taxi'); await p4.press('#say', 'Enter');
+    await p4.waitForSelector('#sheet.show'); await p4.waitForTimeout(300);
+    await p4.click('#sheet-ok'); await p4.waitForTimeout(200);
+    ok((await p4.locator('#toast-msg').innerText()).includes('No se ha guardado'), 'avisa de que no se guardó');
+    ok(await p4.locator('#sheet.show').count() === 1, 'la hoja sigue abierta para no perder el gasto');
+    // e) datos compartidos mal formados no rompen la UI
+    const c5 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p5 = await newPage(c5, { uid: 'm1' });
+    await p5.evaluate(() => localStorage.setItem('__mockdb', JSON.stringify({
+      'txns/x1': { type: 'expense', amount: 10, date: 'ayer', category: 'resto' },
+      'txns/x2': { type: 'expense', amount: '10', date: '2026-11-20' },
+      'txns/x3': { type: 'expense', amount: 7, date: '2026-11-20', category: 'resto', note: 5 },
+      'config/main': { customCats: { k: { name: 'Raro', keywords: 'no-array' } } }
+    })));
+    await p5.reload(); await p5.waitForTimeout(300);
+    await p5.click('[data-tab="hist"]'); await p5.waitForTimeout(100);
+    ok(await p5.locator('#hist-list [data-edit]').count() === 1, 'ignora movimientos mal formados');
+    await p5.click('[data-tab="home"]'); await p5.click('#btn-settings'); await p5.waitForTimeout(300);
+    ok(await p5.locator('[data-cat-edit]').count() > 5, 'Ajustes abre con palabras clave mal formadas');
+  }
+
   // overflow horizontal
   for (const p of [a, s]) {
     const ov = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

@@ -4,7 +4,7 @@
     <header class="lt">
       <div>
         <p class="eyebrow" id="today-label"></p>
-        <h1 id="h-home">Bolsillo</h1>
+        <div class="brand"><span data-logo></span><h1 id="h-home">Qullqi</h1></div>
       </div>
       <button class="icon-btn" id="btn-settings" aria-label="Ajustes"></button>
     </header>
@@ -13,7 +13,8 @@
     <div class="cash" id="cash-card">
       <p class="label"><span data-icon="atm"></span>Efectivo en mano</p>
       <p class="big" id="cash-total"><span class="cur">Bs</span>0</p>
-      <div class="cash-stats">
+      <div id="start-box"></div>
+      <div class="cash-stats" id="cash-stats">
         <div><span>Gastado hoy</span><strong id="spent-today">Bs 0</strong></div>
         <div><span id="month-label">Este mes</span><strong id="spent-month">Bs 0</strong></div>
       </div>
@@ -35,8 +36,8 @@
     </div>
 
     <div class="quick">
-      <button type="button" id="add-expense"><span data-icon="plus"></span>Gasto</button>
-      <button type="button" id="add-cash"><span data-icon="atm"></span>Efectivo</button>
+      <button type="button" id="add-expense"><span data-icon="plus"></span>Añadir gasto</button>
+      <button type="button" id="add-cash"><span data-icon="atm"></span>Sumar efectivo</button>
     </div>
 
     <section class="sec" aria-labelledby="h-recent">
@@ -51,7 +52,7 @@
     <div class="seg" role="group" aria-label="Filtrar" id="hist-seg">
       <button type="button" data-f="all" aria-pressed="true">Todo</button>
       <button type="button" data-f="expense" aria-pressed="false">Gastos</button>
-      <button type="button" data-f="cash" aria-pressed="false">Efectivo</button>
+      <button type="button" data-f="cash" aria-pressed="false">Entradas</button>
     </div>
     <div class="search"><span data-icon="search"></span><label class="sr" for="q">Buscar</label><input id="q" type="search" placeholder="Buscar" autocomplete="off" /></div>
     <div id="hist-chip"></div>

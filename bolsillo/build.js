@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const src = f => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
-const head = '<title>Bolsillo</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' +
+const head = '<title>Qullqi</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n' +
   '<meta name="description" content="Control de gastos en efectivo por voz">\n<meta name="theme-color" content="#f2f2f7">\n';
 const content = head + '<style>\n' + src('app.css') + '</style>\n' + src('app.html') +
   '<script>\n' + src('parser.js') + '</script>\n<script>\n' + src('app.js') + '</script>\n';

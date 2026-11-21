@@ -1,4 +1,5 @@
-/* Bolsillo — app. Depende de BolsilloParser (parser.js). */
+/* Qullqi — «plata, dinero» en quechua y aimara. App de gastos en efectivo por voz.
+ * Depende de QullqiParser (parser.js). */
 (function () {
   'use strict';
   const P = window.BolsilloParser;
@@ -38,6 +39,8 @@
     quote: '<path d="M5 11.5h4v5H5zM5 11.5C5 8.5 6.5 7 9 6.5M14 11.5h4v5h-4zM14 11.5c0-3 1.5-4.5 4-5"/>',
     keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 14h9"/>'
   };
+  const LOGO = '<svg class="logo" viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#b0145a"/>' +
+    '<path fill="#fff" fill-rule="evenodd" d="M18.9 8.7L29.1 8.7L29.1 12.1L32.5 12.1L32.5 15.5L35.9 15.5L35.9 18.9L39.3 18.9L39.3 29.1L35.9 29.1L35.9 32.5L32.5 32.5L32.5 35.9L29.1 35.9L29.1 39.3L18.9 39.3L18.9 35.9L15.5 35.9L15.5 32.5L12.1 32.5L12.1 29.1L8.7 29.1L8.7 18.9L12.1 18.9L12.1 15.5L15.5 15.5L15.5 12.1L18.9 12.1ZM18.7 24a5.3 5.3 0 1 0 10.6 0a5.3 5.3 0 1 0 -10.6 0Z"/></svg>';
   function svg(name, extra) {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || '') + '>' + (ICON[name] || ICON.otros) + '</svg>';
   }
@@ -50,12 +53,13 @@
     { id: 'personal', name: 'Personal del hogar', short: 'Personal', hint: 'Limpieza, niñera', color: '#8e44c9' },
     { id: 'casa', name: 'Casa', hint: 'Alquiler, luz, agua, gas, internet', color: '#9c6b3c' },
     { id: 'salud', name: 'Salud', hint: 'Farmacia, médico', color: '#e03131' },
-    { id: 'ocio', name: 'Ocio', hint: 'Excursiones, actividades, viajes', color: '#d6336c' },
+    { id: 'ocio', name: 'Ocio', hint: 'Excursiones, actividades, viajes', color: '#6741d9' },
     { id: 'noah', name: 'Noah', hint: 'Pañales, juguetes, cole', color: '#1689ad' },
     { id: 'compras', name: 'Compras', hint: 'Ropa, regalos, peluquería', color: '#b07d00' },
     { id: 'otros', name: 'Otros', hint: 'Todo lo demás', color: '#7c7c85' }
   ];
-  const CUSTOM_COLORS = ['#5856d6', '#00897b', '#c2255c', '#6d5d45', '#1c7ed6', '#d9480f', '#495057', '#7048e8'];
+  const CUSTOM_COLORS = ['#5856d6', '#00897b', '#c2255c', '#6d5d45', '#1c7ed6', '#d9480f', '#495057', '#2b8a3e'];
+  const COLOR_NAMES = { '#5856d6': 'Índigo', '#00897b': 'Turquesa', '#c2255c': 'Frambuesa', '#6d5d45': 'Tierra', '#1c7ed6': 'Azul', '#d9480f': 'Naranja', '#495057': 'Pizarra', '#2b8a3e': 'Verde' };
   const WHO = [
     { id: 'familia', name: 'Familia' },
     { id: 'pareja', name: 'Sol y Pol' },
@@ -109,10 +113,19 @@
   const newId = p => (p || 't') + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   function parseAmount(s) {
     if (s == null) return null;
-    const t = String(s).replace(/[^\d.,]/g, '');
+    const raw = String(s).trim();
+    if (!raw || /[^\d.,\s]/.test(raw)) return null;
+    const t = raw.replace(/\s+/g, '');
     if (!t) return null;
     const v = P.digitValue(t);
     return v && v > 0 ? r2(v) : null;
+  }
+  function pct(v, total) { const x = v / total * 100; return x > 0 && x < 1 ? '<1 %' : Math.round(x) + ' %'; }
+  function withTimeout(pr, ms) {
+    return new Promise((res, rej) => {
+      const t = setTimeout(() => rej({ code: 'timeout' }), ms || 15000);
+      Promise.resolve(pr).then(v => { clearTimeout(t); res(v); }, e => { clearTimeout(t); rej(e); });
+    });
   }
   function amountStr(v) { return v == null ? '' : (Number.isInteger(v) ? String(v) : String(r2(v)).replace('.', ',')); }
   const ls = {
@@ -124,37 +137,55 @@
   const S = {
     mode: 'loading', // loading | shared | local
     txns: new Map(), config: {}, configExists: false,
-    loaded: false, stale: false, canWrite: true, uid: null,
+    loaded: false, stale: false, canWrite: true, uid: null, configLoaded: false, storageOk: true,
     me: null,
     tab: 'home', month: monthOf(todayStr()),
-    hist: { f: 'all', q: '', cat: null, month: null, limit: 80 },
-    dict: null, dictState: 'idle', dictLang: true, finals: '', partial: '', wantProcess: false,
+    hist: { f: 'all', q: '', cat: null, who: null, month: null, limit: 80 },
+    dict: null, dictState: 'idle', dictLang: true, finals: '', partial: '', wantProcess: false, heard: false,
+    adjusting: false,
     downloads: null,
     sheet: null
   };
 
   function cats() {
     const ov = S.config.catOverrides || {};
-    const list = BUILTIN.map(c => Object.assign({}, c, {
-      name: (ov[c.id] && ov[c.id].name) || c.name,
-      short: (ov[c.id] && ov[c.id].name) ? null : c.short,
-      keywords: (ov[c.id] && ov[c.id].keywords) || [], builtin: true, icon: c.id
-    }));
-    const cu = S.config.customCats || {};
-    const custom = Object.keys(cu).map(id => Object.assign({ id, icon: 'custom', keywords: [] }, cu[id]))
-      .filter(c => !c.deleted && c.name).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const kw = v => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).slice(0, 60) : [];
+    const str = v => typeof v === 'string' ? v.trim().slice(0, 24) : '';
+    const list = BUILTIN.map(c => {
+      const o = ov[c.id] && typeof ov[c.id] === 'object' ? ov[c.id] : {};
+      return Object.assign({}, c, { name: str(o.name) || c.name, short: str(o.name) ? null : c.short, keywords: kw(o.keywords), builtin: true, icon: c.id });
+    });
+    const cu = S.config.customCats && typeof S.config.customCats === 'object' ? S.config.customCats : {};
+    const custom = Object.keys(cu).filter(id => cu[id] && typeof cu[id] === 'object' && !cu[id].deleted && str(cu[id].name)).map(id => ({
+      id, icon: 'custom', name: str(cu[id].name), keywords: kw(cu[id].keywords),
+      color: /^#[0-9a-f]{6}$/i.test(cu[id].color || '') ? cu[id].color : CUSTOM_COLORS[0], createdAt: +cu[id].createdAt || 0
+    })).sort((a, b) => a.createdAt - b.createdAt);
     const otros = list.pop();
     return list.concat(custom, [otros]);
   }
   function catById(id) { const all = cats(); return all.find(c => c.id === id) || all[all.length - 1]; }
   function catShort(c) { return c.short || c.name; }
-  function rates() { return Object.assign({}, DEFAULT_RATES, S.config.rates || {}); }
+  function rates() {
+    const r = Object.assign({}, DEFAULT_RATES);
+    const c = S.config.rates || {};
+    ['USD', 'EUR'].forEach(k => { if (typeof c[k] === 'number' && c[k] > 0 && c[k] < 1000) r[k] = c[k]; });
+    return r;
+  }
   function whoName(id) { const w = WHO.find(x => x.id === id); return w ? w.name : 'Familia'; }
   function srcOf(id) { return SOURCES.find(s => s.id === id) || SOURCES[2]; }
 
   function allTxns() {
-    return Array.from(S.txns.entries()).map(([id, d]) => Object.assign({ id }, d))
-      .filter(t => t && typeof t.amount === 'number' && isFinite(t.amount) && typeof t.date === 'string')
+    const out = [];
+    S.txns.forEach((d, id) => {
+      if (!d || typeof d !== 'object' || typeof d.amount !== 'number' || !isFinite(d.amount) || Math.abs(d.amount) > 1e9) return;
+      if (typeof d.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d.date) || isNaN(parseYmd(d.date).getTime())) return;
+      if (d.type !== 'expense' && d.type !== 'cash_in' && d.type !== 'adjust') return;
+      const t = Object.assign({ id }, d);
+      if (t.type !== 'adjust') t.amount = Math.abs(t.amount);
+      if (typeof t.note !== 'string') t.note = '';
+      out.push(t);
+    });
+    return out
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0)));
   }
   function balance(list) {
@@ -168,68 +199,106 @@
   }
 
   // ---------------------------------------------------------------- almacenamiento
+  const LOCAL_KEY = 'qullqi.data.v1';
   const Store = {
     db: null,
     configQueue: Promise.resolve(),
     initLocal(reason) {
-      S.mode = 'local'; S.localReason = reason || 'standalone';
-      let data = null;
-      try { data = JSON.parse(ls.get('bolsillo.data.v1') || 'null'); } catch (e) { data = null; }
-      data = data || { txns: {}, config: {} };
-      S.txns = new Map(Object.entries(data.txns || {}));
-      S.config = data.config || {};
-      S.configExists = true; S.loaded = true;
+      S.mode = 'local'; S.localReason = reason || 'standalone'; S.canWrite = true;
+      S.storageOk = ls.set('qullqi.probe', '1');
+      this.loadLocal();
+      S.configExists = true; S.configLoaded = true; S.loaded = true;
+      window.addEventListener('storage', e => { if (e.key === LOCAL_KEY) { this.loadLocal(); renderAll(); } });
       renderAll();
+    },
+    loadLocal() {
+      let data = null;
+      try { data = JSON.parse(ls.get(LOCAL_KEY) || 'null'); } catch (e) { data = null; }
+      data = data && typeof data === 'object' ? data : {};
+      S.txns = new Map(Object.entries(data.txns && typeof data.txns === 'object' ? data.txns : {}));
+      S.config = data.config && typeof data.config === 'object' ? data.config : {};
     },
     saveLocal() {
       const obj = { txns: Object.fromEntries(S.txns), config: S.config };
-      if (!ls.set('bolsillo.data.v1', JSON.stringify(obj))) toast('No se pudo guardar en este dispositivo.');
+      const ok = ls.set(LOCAL_KEY, JSON.stringify(obj));
+      if (!ok) { S.storageOk = false; renderBanners(); }
+      return ok;
     },
     initShared(db) {
       this.db = db; S.mode = 'shared';
       const timer = setTimeout(() => { if (!S.confirmed) { S.stale = true; renderBanners(); } }, 10000);
-      db.collection('txns').onSnapshot(snap => {
+      const subTxns = () => db.collection('txns').onSnapshot(snap => {
         const m = new Map();
         snap.docs.forEach(d => { if (d.exists) m.set(d.id, d.data()); });
         S.txns = m; S.loaded = true;
         if (!snap.metadata.fromCache) { S.confirmed = true; S.stale = false; clearTimeout(timer); }
         renderAll();
-      }, err => { S.loaded = true; S.stale = true; S.dbError = err && err.code; clearTimeout(timer); renderAll(); });
-      db.doc('config/main').onSnapshot(d => {
+      }, err => {
+        S.loaded = true; S.stale = true; clearTimeout(timer); renderAll();
+        if (err && (err.code === 'unavailable' || err.code === 'resource_exhausted')) setTimeout(subTxns, 5000);
+      });
+      const subConfig = () => db.doc('config/main').onSnapshot(d => {
         S.config = d.exists ? (d.data() || {}) : {};
         S.configExists = !!d.exists;
-        if (S.uid && S.config.members && S.config.members[S.uid]) { S.me = S.config.members[S.uid]; ls.set(meKey(), S.me); }
+        if (!d.metadata || !d.metadata.fromCache) S.configLoaded = true;
+        if (S.uid && S.config.members && typeof S.config.members[S.uid] === 'string' && PEOPLE.indexOf(S.config.members[S.uid]) >= 0) {
+          S.me = S.config.members[S.uid]; ls.set(meKey(), S.me);
+        }
         renderAll();
-      }, () => {});
+      }, err => { if (err && (err.code === 'unavailable' || err.code === 'resource_exhausted')) setTimeout(subConfig, 5000); });
+      subTxns(); subConfig();
       renderAll();
     },
     async put(id, doc) {
-      if (S.mode === 'local') { S.txns.set(id, doc); this.saveLocal(); renderAll(); return; }
+      if (S.mode === 'local') {
+        const had = S.txns.has(id), prev = S.txns.get(id);
+        S.txns.set(id, doc);
+        if (!this.saveLocal()) { if (had) S.txns.set(id, prev); else S.txns.delete(id); throw { code: 'local_storage' }; }
+        renderAll(); return;
+      }
       return this.retry(() => this.db.collection('txns').doc(id).set(doc));
     },
     async del(id) {
-      if (S.mode === 'local') { S.txns.delete(id); this.saveLocal(); renderAll(); return; }
+      if (S.mode === 'local') {
+        const prev = S.txns.get(id);
+        S.txns.delete(id);
+        if (!this.saveLocal()) { if (prev) S.txns.set(id, prev); throw { code: 'local_storage' }; }
+        renderAll(); return;
+      }
       return this.retry(() => this.db.collection('txns').doc(id).delete());
     },
     patchConfig(patch) {
       if (S.mode === 'local') {
+        const prev = S.config;
         S.config = deepMerge(JSON.parse(JSON.stringify(S.config || {})), patch);
-        this.saveLocal(); renderAll(); return Promise.resolve();
+        if (!this.saveLocal()) { S.config = prev; return Promise.reject({ code: 'local_storage' }); }
+        renderAll(); return Promise.resolve();
       }
-      const run = () => {
+      // Nunca se reescribe la configuración entera: update() fusiona; set() solo si el documento no existe.
+      const run = async () => {
         const ref = this.db.doc('config/main');
-        return this.retry(() => S.configExists ? ref.update(patch) : ref.set(deepMerge(JSON.parse(JSON.stringify(S.config || {})), patch)))
-          .then(() => { S.configExists = true; });
+        try { await withTimeout(ref.update(patch)); }
+        catch (e) {
+          if (!e || e.code !== 'invalid_argument') {
+            if (e && e.code === 'unavailable') { await new Promise(r => setTimeout(r, 600)); return this.retry(() => ref.update(patch)); }
+            throw writeError(e);
+          }
+          const snap = await withTimeout(ref.get());
+          if (snap.exists) await this.retry(() => ref.update(patch));
+          else await this.retry(() => ref.set(patch));
+        }
+        S.configExists = true;
       };
-      this.configQueue = this.configQueue.then(run, run);
-      return this.configQueue;
+      const next = this.configQueue.then(run, run);
+      this.configQueue = next.catch(() => {});
+      return next;
     },
     async retry(fn) {
-      try { return await fn(); }
+      try { return await withTimeout(fn()); }
       catch (e) {
         if (e && e.code === 'unavailable') {
           await new Promise(r => setTimeout(r, 400 + Math.random() * 800));
-          try { return await fn(); } catch (e2) { throw writeError(e2); }
+          try { return await withTimeout(fn()); } catch (e2) { throw writeError(e2); }
         }
         throw writeError(e);
       }
@@ -245,6 +314,8 @@
     if (c === 'invalid_argument' || c === 'not_granted') return 'No tienes permiso para guardar. Pide acceso de Editor.';
     if (c === 'quota_exceeded') return 'El almacenamiento está lleno. Borra movimientos antiguos.';
     if (c === 'revoked') return 'Se ha retirado el acceso a los datos.';
+    if (c === 'local_storage') return 'Este navegador no deja guardar datos. No se ha guardado nada.';
+    if (c === 'timeout') return 'Sin conexión: no se pudo confirmar. Vuelve a tocar Guardar cuando tengas señal.';
     return 'No se pudo guardar. Revisa la conexión e inténtalo de nuevo.';
   }
   function deepMerge(a, b) {
@@ -278,7 +349,8 @@
     } else {
       const c = catById(t.category);
       title = t.note || c.name;
-      sub.push(catShort(c), whoName(t.who));
+      sub.push(catShort(c));
+      if (whoName(t.who) !== catShort(c)) sub.push(whoName(t.who));
       if (t.method === 'qr') sub.push('QR / tarjeta');
       amt = money(t.amount);
     }
@@ -307,18 +379,19 @@
     renderHome();
     if (S.tab === 'hist') renderHist();
     if (S.tab === 'sum') renderSum();
-    if (S.sheet && S.sheet.kind === 'settings') { /* los ajustes se re-renderizan sólo al abrir para no perder el foco */ }
   }
 
   function renderBanners() {
     const el = $('#banners');
     const parts = [];
-    if (S.mode === 'local' && S.localReason !== 'standalone-quiet') {
+    if (S.mode === 'local' && !S.storageOk) {
+      parts.push('<div class="banner">' + svg('info') + '<span><strong>No se puede guardar.</strong> Este navegador bloquea el almacenamiento: lo que anotes se perderá al cerrar.</span></div>');
+    } else if (S.mode === 'local') {
       parts.push('<div class="banner">' + svg('info') + '<span><strong>Solo en este dispositivo.</strong> ' +
         (S.localReason === 'nodb' ? 'Inicia sesión en Claude para compartir los datos con tu familia.' : 'Los datos se guardan en este navegador.') + '</span></div>');
     }
     if (S.mode === 'shared' && !S.canWrite) {
-      parts.push('<div class="banner">' + svg('info') + '<span><strong>Solo lectura.</strong> Pide a quien creó Bolsillo que te invite como Editor para poder anotar gastos.</span></div>');
+      parts.push('<div class="banner">' + svg('info') + '<span><strong>Solo lectura.</strong> Pide a quien creó Qullqi que te invite como Editor para poder anotar gastos.</span></div>');
     }
     if (S.mode === 'shared' && S.stale) {
       parts.push('<div class="banner">' + svg('info') + '<span><strong>Sin conexión con los datos.</strong> ' +
@@ -340,7 +413,15 @@
     const ct = $('#cash-total');
     ct.innerHTML = moneyHTML(bal);
     ct.classList.toggle('neg', bal < 0);
-    ct.setAttribute('aria-label', 'Efectivo en mano: ' + (bal < 0 ? 'menos ' : '') + money(bal));
+    const startBox = $('#start-box');
+    const showStart = !list.length && S.canWrite && ls.get('qullqi.started') !== '1';
+    if (showStart && !startBox.firstChild) {
+      startBox.innerHTML = '<p class="start-q"><label for="start-in">¿Cuánto efectivo tenéis ahora?</label></p><form class="start" id="start-form" autocomplete="off">' +
+        '<div class="amt-box"><span>Bs</span><input id="start-in" type="text" inputmode="decimal" placeholder="0"/></div>' +
+        '<button class="btn-primary" type="submit">Empezar</button></form>' +
+        '<p class="start-help">Cuenta los billetes para partir de la cantidad real, o <button type="button" class="inline-link" id="start-zero">empieza desde 0</button>.</p>';
+    } else if (!showStart && startBox.firstChild) startBox.innerHTML = '';
+    $('#cash-stats').hidden = showStart;
     const t = todayStr(), m = monthOf(t);
     let sToday = 0, sMonth = 0;
     list.forEach(x => { if (x.type === 'expense') { if (x.date === t) sToday += x.amount; if (monthOf(x.date) === m) sMonth += x.amount; } });
@@ -350,7 +431,7 @@
 
     // quién soy
     const who = $('#whoami');
-    if (!S.me) {
+    if (!S.me && (S.mode === 'local' || S.configLoaded)) {
       who.innerHTML = '<div class="whoami"><p>¿Quién usa este móvil?<span>Así entiendo «para mí» cuando dictes.</span></p><div class="pills">' +
         PEOPLE.map(p => '<button type="button" class="pill-btn" data-me="' + p + '">' + p + '</button>').join('') + '</div></div>';
     } else who.innerHTML = '';
@@ -358,7 +439,7 @@
     const rec = list.slice(0, 5);
     const ul = $('#recent');
     if (!rec.length) {
-      ul.innerHTML = '<li class="empty"><strong>Aún no hay movimientos</strong>Toca el micrófono y di, por ejemplo, «saqué 1000 del cajero» o «35 en taxi».</li>';
+      ul.innerHTML = '<li class="empty"><strong>Aún no hay movimientos</strong>' + (S.dict ? 'Toca el micrófono y di, por ejemplo, «saqué 1000 del cajero» o «35 en taxi».' : 'Escribe o dicta con el teclado, por ejemplo, «saqué 1000 del cajero» o «35 en taxi».') + '</li>';
       $('#see-all').hidden = true;
     } else {
       ul.innerHTML = rec.map(x => rowHTML(x, true)).join('');
@@ -367,7 +448,7 @@
     }
     if (bal < 0) {
       const b = $('#banners');
-      if (!$('#neg-hint')) b.insertAdjacentHTML('beforeend', '<div class="banner" id="neg-hint">' + svg('info') + '<span>El efectivo sale negativo: quizá falta anotar un retiro del cajero. Puedes corregirlo en <strong>Ajustes</strong>.</span></div>');
+      if (!$('#neg-hint')) b.insertAdjacentHTML('beforeend', '<div class="banner" id="neg-hint">' + svg('info') + '<span>El efectivo sale negativo: quizá falta anotar un retiro del cajero. <button type="button" class="inline-link" id="fix-cash">Corregir el efectivo</button></span></div>');
     }
     renderMic();
   }
@@ -399,18 +480,18 @@
     const box = $('#hist-list');
     $$('#hist-seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === S.hist.f)));
     const chip = $('#hist-chip');
-    if (S.hist.cat) {
-      const c = catById(S.hist.cat);
-      chip.innerHTML = '<button type="button" class="chip-filter" id="clear-cat" aria-label="Quitar filtro"><span class="cf-name"></span>' + svg('x') + '</button>';
-      $('.cf-name', chip).textContent = c.name + (S.hist.month ? ' · ' + DF_MONTH.format(parseYmd(S.hist.month + '-01')) : '');
+    if (S.hist.cat || S.hist.who) {
+      const label = S.hist.cat ? catById(S.hist.cat).name : 'Para ' + whoName(S.hist.who);
+      chip.innerHTML = '<button type="button" class="chip-filter" id="clear-cat"><span class="cf-name"></span>' + svg('x') + '<span class="sr">Quitar filtro</span></button>';
+      $('.cf-name', chip).textContent = label + (S.hist.month ? ' · ' + DF_MONTH.format(parseYmd(S.hist.month + '-01')) : '');
     } else chip.innerHTML = '';
     if (!S.loaded) { box.innerHTML = '<p class="loading">Cargando…</p>'; return; }
     const q = P.strip(S.hist.q.trim());
     let list = allTxns().filter(t => {
       if (S.hist.f === 'expense' && t.type !== 'expense') return false;
-      if (S.hist.f === 'cash' && t.type === 'expense' && t.method === 'qr') return false;
       if (S.hist.f === 'cash' && t.type === 'expense') return false;
       if (S.hist.cat && (t.type !== 'expense' || catById(t.category).id !== S.hist.cat)) return false;
+      if (S.hist.who && (t.type !== 'expense' || (WHO.some(w => w.id === t.who) ? t.who : 'familia') !== S.hist.who)) return false;
       if (S.hist.month && monthOf(t.date) !== S.hist.month) return false;
       if (q) {
         const hay = P.strip([t.note, t.text, t.type === 'expense' ? catById(t.category).name : srcOf(t.source).name, t.type === 'expense' ? whoName(t.who) : ''].join(' '));
@@ -429,7 +510,7 @@
     shown.forEach(t => { const g = groups[groups.length - 1]; if (g && g.date === t.date) g.items.push(t); else groups.push({ date: t.date, items: [t] }); });
     const dayTotals = {};
     list.forEach(t => { if (t.type === 'expense') dayTotals[t.date] = (dayTotals[t.date] || 0) + t.amount; });
-    box.innerHTML = groups.map(g => '<div class="day-h"><span>' + esc(dayLabel(g.date)) + '</span><span>' + (dayTotals[g.date] ? esc(money(dayTotals[g.date])) : '') + '</span></div>' +
+    box.innerHTML = groups.map(g => '<div class="day-h"><span>' + esc(cap(dayLabel(g.date))) + '</span><span>' + (dayTotals[g.date] ? esc(money(dayTotals[g.date])) : '') + '</span></div>' +
       '<div class="group"><ul class="list">' + g.items.map(t => rowHTML(t, false)).join('') + '</ul></div>').join('') +
       (total > shown.length ? '<button type="button" class="more" id="more">Mostrar más (' + (total - shown.length) + ')</button>' : '');
     fillNotes(box, shown);
@@ -439,8 +520,12 @@
   function renderSum() {
     const cur = monthOf(todayStr());
     if (S.month > cur) S.month = cur;
+    let first = cur;
+    S.txns.forEach(d => { if (d && typeof d.date === 'string' && /^\d{4}-\d{2}/.test(d.date) && d.date.slice(0, 7) < first) first = d.date.slice(0, 7); });
+    if (S.month < first) S.month = first;
     $('#m-label').textContent = cap(DF_MONTH.format(parseYmd(S.month + '-01')));
     $('#m-next').disabled = S.month >= cur;
+    $('#m-prev').disabled = S.month <= first;
     const body = $('#sum-body');
     if (!S.loaded) { body.innerHTML = '<p class="loading">Cargando…</p>'; return; }
     const all = allTxns();
@@ -463,7 +548,7 @@
     if (!exp.length) {
       const ins = mlist.filter(t => t.type === 'cash_in');
       h += '<div class="group" style="margin-top:16px"><div class="empty"><strong>Nada que resumir todavía</strong>' +
-        (ins.length ? 'Este mes solo hay entradas de efectivo.' : 'Cuando anotes gastos verás aquí en qué se va el dinero.') + '</div></div>';
+        (ins.length ? 'Este mes solo hay entradas de efectivo.' : all.length ? 'No hay gastos anotados en ' + esc(monthName) + '.' : 'Cuando anotes gastos verás aquí en qué se va el dinero.') + '</div></div>';
       body.innerHTML = h; return;
     }
 
@@ -475,7 +560,7 @@
     h += '<section class="sec"><div class="sec-h"><h2>Por categoría</h2><span class="meta">Toca para ver</span></div><div class="group"><ul class="list bars">' +
       catRows.map(r => '<li><button type="button" class="bar-row" data-cat="' + esc(r.c.id) + '" aria-label="' + esc(r.c.name + ': ' + money(r.v)) + '"><div class="bar-top">' +
         '<span class="tile sm" style="background:' + esc(r.c.color) + '">' + svg(r.c.icon) + '</span><span class="name">' + esc(r.c.name) + '</span>' +
-        '<span class="val">' + esc(money(r.v)) + '</span><span class="pct">' + Math.round(r.v / total * 100) + '%</span></div>' +
+        '<span class="val">' + esc(money(r.v)) + '</span><span class="pct">' + pct(r.v, total) + '</span></div>' +
         '<div class="track"><i style="width:' + (r.v / maxC * 100).toFixed(1) + '%"></i></div></button></li>').join('') + '</ul></div></section>';
 
     // para quién
@@ -483,16 +568,16 @@
     exp.forEach(t => { const w = WHO.find(x => x.id === t.who) ? t.who : 'familia'; byWho[w] = (byWho[w] || 0) + t.amount; });
     const whoRows = WHO.filter(w => byWho[w.id]).map(w => ({ w, v: r2(byWho[w.id]) })).sort((a, b) => b.v - a.v);
     const maxW = whoRows[0].v;
-    h += '<section class="sec"><div class="sec-h"><h2>Para quién</h2></div><div class="group"><ul class="list bars">' +
-      whoRows.map(r => '<li><div class="bar-row"><div class="bar-top"><span class="tile sm" style="background:var(--fill-strong);color:var(--label)">' + svg(r.w.id === 'noah' ? 'noah' : 'personal') + '</span>' +
-        '<span class="name">' + esc(r.w.name) + '</span><span class="val">' + esc(money(r.v)) + '</span><span class="pct">' + Math.round(r.v / total * 100) + '%</span></div>' +
-        '<div class="track"><i style="width:' + (r.v / maxW * 100).toFixed(1) + '%"></i></div></div></li>').join('') + '</ul></div></section>';
+    h += '<section class="sec"><div class="sec-h"><h2>Para quién</h2><span class="meta">Toca para ver</span></div><div class="group"><ul class="list bars">' +
+      whoRows.map(r => '<li><button type="button" class="bar-row" data-who="' + r.w.id + '" aria-label="' + esc(r.w.name + ': ' + money(r.v)) + '"><div class="bar-top"><span class="tile sm" style="background:var(--fill-strong);color:var(--label)">' + svg(r.w.id === 'noah' ? 'noah' : 'personal') + '</span>' +
+        '<span class="name">' + esc(r.w.name) + '</span><span class="val">' + esc(money(r.v)) + '</span><span class="pct">' + pct(r.v, total) + '</span></div>' +
+        '<div class="track"><i style="width:' + (r.v / maxW * 100).toFixed(1) + '%"></i></div></button></li>').join('') + '</ul></div></section>';
 
     // día a día
     const perDay = new Array(daysInMonth).fill(0);
     exp.forEach(t => { const d = +t.date.slice(8, 10); if (d >= 1 && d <= daysInMonth) perDay[d - 1] += t.amount; });
     h += '<section class="sec"><div class="sec-h"><h2>Día a día</h2><span class="meta">Máx. ' + esc(money(Math.max.apply(null, perDay))) + '</span></div><div class="chart-card" id="daychart">' +
-      dayChart(perDay, isCur ? new Date().getDate() : 0) + '</div></section>';
+      dayChart(perDay, isCur ? new Date().getDate() : 0, yy, mm) + '</div></section>';
 
     // pago y efectivo
     const cash = exp.filter(t => t.method !== 'qr').reduce((s, t) => s + t.amount, 0);
@@ -514,7 +599,7 @@
     const m = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
     return m * p;
   }
-  function dayChart(perDay, today) {
+  function dayChart(perDay, today, yy, mm) {
     const W = 340, H = 150, L = 38, R = 6, T = 10, B = 22;
     const n = perDay.length, max = niceMax(Math.max.apply(null, perDay));
     const pw = W - L - R, ph = H - T - B, band = pw / n, bw = Math.max(3, band * 0.64);
@@ -529,13 +614,13 @@
       if (v > 0) {
         const top = y(v), r = Math.min(2, bw / 2, (T + ph - top));
         const base = T + ph;
-        s += '<path class="col' + (today && i + 1 > today ? ' dim' : '') + '" d="M' + x + ',' + base + 'V' + (top + r) + 'Q' + x + ',' + top + ' ' + (x + r) + ',' + top +
+        s += '<path class="col' + (today && i + 1 > today ? ' dim' : '') + '" data-c="' + (i + 1) + '" d="M' + x + ',' + base + 'V' + (top + r) + 'Q' + x + ',' + top + ' ' + (x + r) + ',' + top +
           'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + top + ' ' + (x + bw) + ',' + (top + r) + 'V' + base + 'Z"/>';
       }
-      s += '<rect class="hit" data-d="' + (i + 1) + '" data-v="' + v + '" x="' + (L + i * band) + '" y="' + T + '" width="' + band + '" height="' + ph + '"/>';
+      s += '<rect class="hit" data-d="' + (i + 1) + '" data-v="' + v + '" x="' + (L + i * band) + '" y="' + T + '" width="' + band + '" height="' + ph + '"' +
+        (v > 0 ? ' tabindex="0" role="img" aria-label="' + esc(DF_SHORT.format(new Date(yy, mm - 1, i + 1)) + ': ' + money(v)) + '"' : '') + '/>';
     });
     [1, 8, 15, 22, n].forEach(d => {
-      if (d === 29 && n === 29) return;
       s += '<text class="axis" x="' + (L + (d - 0.5) * band) + '" y="' + (H - 6) + '" text-anchor="middle">' + d + '</text>';
     });
     return s + '</svg><div class="tip" id="tip" hidden></div>';
@@ -547,18 +632,22 @@
     const show = e => {
       const r = e.target.closest && e.target.closest('.hit'); if (!r) return;
       const d = +r.dataset.d, v = +r.dataset.v;
+      $$('.col.sel', svgEl).forEach(c => c.classList.remove('sel'));
+      const col = $('.col[data-c="' + d + '"]', svgEl); if (col) col.classList.add('sel');
       const box = svgEl.getBoundingClientRect(), cb = card.getBoundingClientRect();
       const scale = box.width / 340;
       const x = (parseFloat(r.getAttribute('x')) + parseFloat(r.getAttribute('width')) / 2) * scale + (box.left - cb.left);
       tip.textContent = DF_SHORT.format(new Date(yy, mm - 1, d)) + ' · ' + money(v);
       tip.hidden = false;
-      const tw = tip.offsetWidth;
-      const cx = Math.min(Math.max(x, tw / 2 + 4), cb.width - tw / 2 - 4);
-      tip.style.left = cx + 'px'; tip.style.top = (box.top - cb.top + 8) + 'px';
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      const cx = Math.min(Math.max(x, tw / 2 + 6), cb.width - tw / 2 - 6);
+      tip.style.left = cx + 'px'; tip.style.top = Math.max(th + 6, box.top - cb.top + 10) + 'px';
     };
     svgEl.addEventListener('pointermove', show);
     svgEl.addEventListener('pointerdown', show);
-    svgEl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') tip.hidden = true; });
+    svgEl.addEventListener('focusin', show);
+    svgEl.addEventListener('focusout', () => { tip.hidden = true; });
+    svgEl.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { tip.hidden = true; $$('.col.sel', svgEl).forEach(c => c.classList.remove('sel')); } });
   }
 
   // ---------------------------------------------------------------- pestañas
@@ -633,81 +722,119 @@
       type: it.type, amount: amountStr(it.amountBs), category: it.category || 'otros', who: it.who || 'familia',
       method: it.method || 'cash', source: it.source || 'atm', date: it.date || todayStr(), note: it.note || '',
       currency: it.currency || 'BOB', origAmount: it.amount, rateUsed: it.rateUsed, estimated: !!(it.flags && it.flags.estimated),
-      guessed: !!(it.flags && it.flags.categoryGuessed)
+      guessed: !!(it.flags && it.flags.categoryGuessed),
+      open: !!(it.flags && (it.flags.noAmount || it.flags.categoryGuessed || it.flags.estimated))
     };
   }
   function blankDraft(type) {
-    return { type, amount: '', category: 'otros', who: 'familia', method: 'cash', source: 'atm', date: todayStr(), note: '', currency: 'BOB', guessed: false };
+    return { type, amount: '', category: 'otros', who: 'familia', method: 'cash', source: 'atm', date: todayStr(), note: '', currency: 'BOB', guessed: false, open: true };
   }
   function draftFromTxn(t) {
     return {
       type: t.type === 'adjust' ? 'adjust' : t.type, amount: amountStr(Math.abs(t.amount)), sign: t.amount < 0 ? -1 : 1,
       category: t.category || 'otros', who: t.who || 'familia', method: t.method || 'cash', source: t.source || 'other',
-      date: t.date, note: t.note || '', currency: t.currency || 'BOB', origAmount: t.origAmount, guessed: false
+      date: t.date, note: typeof t.note === 'string' ? t.note : '', currency: t.currency || 'BOB', origAmount: t.origAmount, guessed: false, open: true
     };
+  }
+
+  function draftLine(d) {
+    if (d.type === 'cash_in') return srcOf(d.source).name;
+    if (d.type === 'adjust') return 'Ajuste de efectivo';
+    const c = catById(d.category);
+    const bits = [catShort(c)];
+    if (whoName(d.who) !== catShort(c)) bits.push(whoName(d.who));
+    if (d.method === 'qr') bits.push('QR / tarjeta');
+    return bits.join(' · ');
+  }
+  function draftTile(d) {
+    return tileHTML({ type: d.type, source: d.source, category: d.category });
+  }
+
+  function formHTML(d, i, allCats) {
+    let h = '<div class="form" id="form-' + i + '">';
+    if (d.type !== 'adjust') {
+      h += '<div class="seg" role="group" aria-label="Tipo de movimiento">' +
+        '<button type="button" data-k="type" data-v="expense" data-i="' + i + '" aria-pressed="' + (d.type === 'expense') + '">Gasto</button>' +
+        '<button type="button" data-k="type" data-v="cash_in" data-i="' + i + '" aria-pressed="' + (d.type === 'cash_in') + '">Entrada de efectivo</button></div>';
+    }
+    const aid = 'amt-' + i;
+    h += '<div><label class="sr" for="' + aid + '">Importe en bolivianos</label><div class="amount-in' + (d.err ? ' err' : '') + '"><span>Bs</span>' +
+      (d.type === 'adjust' ? '<span aria-hidden="true">' + (d.sign < 0 ? '−' : '+') + '</span>' : '') +
+      '<input id="' + aid + '" data-k="amount" data-i="' + i + '" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + esc(d.amount) + '"' +
+      (d.err ? ' aria-invalid="true" aria-describedby="amt-err-' + i + '"' : '') + '/></div>';
+    if (d.err) h += '<p class="note err-msg" id="amt-err-' + i + '">Escribe el importe (solo números, por ejemplo 25 o 12,50).</p>';
+    if (d.type === 'cash_in' && d.currency !== 'BOB' && d.origAmount) {
+      h += '<p class="note' + (d.estimated ? ' warn' : '') + '">' + esc(num(d.origAmount) + ' ' + d.currency) + (d.estimated ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) + ' (tipo de cambio de Ajustes). Revisa lo que te dieron.' : (d.rateUsed ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) : '')) + '</p>';
+    } else if (d.type === 'expense' && d.currency && d.currency !== 'BOB' && d.origAmount) {
+      h += '<p class="note warn">' + esc(num(d.origAmount) + ' ' + d.currency) + ' convertidos con el tipo de cambio de Ajustes. Revísalo.</p>';
+    }
+    h += '</div>';
+    h += '<div class="field"><label for="note-' + i + '">Concepto</label><input id="note-' + i + '" type="text" data-k="note" data-i="' + i + '" maxlength="80" placeholder="' +
+      (d.type === 'expense' ? 'Ej.: Café en la plaza' : d.type === 'adjust' ? 'Ajuste de efectivo' : 'Ej.: Cajero BNB') + '" value="' + esc(d.note) + '"/></div>';
+    if (d.type === 'expense') {
+      h += '<div class="field"><span class="flabel" id="cl-' + i + '">Categoría' + (d.guessed ? ' · <span style="font-weight:500">no la he reconocido, elige una</span>' : '') + '</span><div class="cats" role="group" aria-labelledby="cl-' + i + '">' +
+        allCats.map(c => '<button type="button" class="cat" data-k="category" data-v="' + esc(c.id) + '" data-i="' + i + '" aria-pressed="' + (d.category === c.id) + '">' +
+          '<span class="tile" style="background:' + esc(c.color) + '">' + svg(c.icon) + '</span><span>' + esc(catShort(c)) + '</span></button>').join('') + '</div></div>';
+      h += '<div class="field"><span class="flabel" id="wl-' + i + '">Para</span><div class="chips" role="group" aria-labelledby="wl-' + i + '">' +
+        WHO.map(w => '<button type="button" data-k="who" data-v="' + w.id + '" data-i="' + i + '" aria-pressed="' + (d.who === w.id) + '">' + esc(w.name) + '</button>').join('') + '</div></div>';
+      h += '<div class="field"><span class="flabel" id="pl-' + i + '">Pago</span><div class="seg" role="group" aria-labelledby="pl-' + i + '">' +
+        '<button type="button" data-k="method" data-v="cash" data-i="' + i + '" aria-pressed="' + (d.method !== 'qr') + '">Efectivo</button>' +
+        '<button type="button" data-k="method" data-v="qr" data-i="' + i + '" aria-pressed="' + (d.method === 'qr') + '">QR / tarjeta</button></div></div>';
+    } else if (d.type === 'cash_in') {
+      h += '<div class="field"><span class="flabel" id="sl-' + i + '">Origen</span><div class="seg" role="group" aria-labelledby="sl-' + i + '">' +
+        SOURCES.map(s => '<button type="button" data-k="source" data-v="' + s.id + '" data-i="' + i + '" aria-pressed="' + (d.source === s.id) + '">' + esc(s.short || s.name) + '</button>').join('') + '</div></div>';
+    }
+    h += '<div class="field"><label for="date-' + i + '">Fecha</label><input id="date-' + i + '" type="date" data-k="date" data-i="' + i + '" value="' + esc(d.date) + '" max="' + todayStr() + '"' +
+      (d.dateErr ? ' aria-invalid="true" aria-describedby="date-err-' + i + '"' : '') + '/>' +
+      (d.dateErr ? '<p class="note err-msg" id="date-err-' + i + '">La fecha no puede ser posterior a hoy.</p>' : '') + '</div>';
+    return h + '</div>';
   }
 
   function renderEntry(st, body, ok, cancel) {
     const n = st.items.length;
+    const total = st.items.reduce((s, d) => s + (d.type === 'expense' ? (parseAmount(d.amount) || 0) : 0), 0);
     $('#sheet-title').textContent = st.editId ? 'Editar' : n > 1 ? n + ' movimientos' : st.items[0].type === 'cash_in' ? 'Entrada de efectivo' : st.items[0].type === 'adjust' ? 'Ajuste' : 'Nuevo gasto';
     ok.textContent = 'Guardar'; ok.disabled = !S.canWrite || st.saving; cancel.textContent = 'Cancelar'; cancel.classList.remove('ghost'); cancel.tabIndex = 0;
     let h = '';
-    if (st.text) {
-      h += '<div class="quote">' + svg('quote') + '<q class="q-text"></q><button type="button" data-act="edit-text">Corregir</button></div>';
-    }
+    if (!S.canWrite) h += '<div class="banner">' + svg('info') + '<span><strong>Solo lectura.</strong> Necesitas acceso de Editor para guardar.</span></div>';
+    if (st.text) h += '<div class="quote">' + svg('quote') + '<q class="q-text"></q><button type="button" data-act="edit-text">Corregir</button></div>';
     const allCats = cats();
+    if (n > 1) {
+      h += '<div class="total-line"><span>Revisa cada uno; toca para cambiarlo</span>' + (total ? '<strong>Total ' + esc(money(total)) + '</strong>' : '') + '</div>';
+    }
     st.items.forEach((d, i) => {
       h += '<div class="item" data-i="' + i + '">';
-      if (n > 1) h += '<div class="item-h"><span>' + (i + 1) + ' de ' + n + '</span><button type="button" data-act="remove" data-i="' + i + '">Quitar</button></div>';
-      h += '<div class="form">';
-      if (d.type !== 'adjust') {
-        h += '<div class="seg" role="group" aria-label="Tipo de movimiento">' +
-          '<button type="button" data-k="type" data-v="expense" data-i="' + i + '" aria-pressed="' + (d.type === 'expense') + '">Gasto</button>' +
-          '<button type="button" data-k="type" data-v="cash_in" data-i="' + i + '" aria-pressed="' + (d.type === 'cash_in') + '">Entrada de efectivo</button></div>';
+      if (n > 1) {
+        const amt = parseAmount(d.amount);
+        const problem = !amt ? 'Falta el importe' : d.guessed ? 'Elige la categoría' : '';
+        if (d.open) h += '<div class="item-h"><span>' + (i + 1) + ' de ' + n + '</span><button type="button" data-act="remove" data-i="' + i + '">Quitar</button></div>';
+        h += '<button type="button" class="mini" data-act="toggle" data-i="' + i + '" aria-expanded="' + !!d.open + '" aria-controls="form-' + i + '">' + draftTile(d) +
+          '<span class="txt"><span class="t1 mini-note" data-i="' + i + '"></span><span class="t2' + (problem ? ' warn' : '') + '">' + esc(problem || draftLine(d)) + '</span></span>' +
+          '<span class="amt">' + (amt ? esc((d.type === 'cash_in' ? '+' : '') + money(amt)) : '—') + '</span>' + svg('right', ' class="chev"') + '</button>';
+        if (d.open) h += formHTML(d, i, allCats);
+      } else {
+        h += formHTML(d, i, allCats);
       }
-      const aid = 'amt-' + i;
-      h += '<div><label class="sr" for="' + aid + '">Importe en bolivianos</label><div class="amount-in' + (d.err ? ' err' : '') + '"><span>Bs</span>' +
-        (d.type === 'adjust' ? '<span aria-hidden="true">' + (d.sign < 0 ? '−' : '+') + '</span>' : '') +
-        '<input id="' + aid + '" data-k="amount" data-i="' + i + '" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + esc(d.amount) + '"/></div>';
-      if (d.type === 'cash_in' && d.currency !== 'BOB' && d.origAmount) {
-        h += '<p class="note' + (d.estimated ? ' warn' : '') + '">' + esc(num(d.origAmount) + ' ' + d.currency) + (d.estimated ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) + ' (tipo de cambio de Ajustes). Revisa lo que te dieron.' : (d.rateUsed ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) : '')) + '</p>';
-      } else if (d.type === 'expense' && d.currency && d.currency !== 'BOB' && d.origAmount) {
-        h += '<p class="note warn">' + esc(num(d.origAmount) + ' ' + d.currency) + ' convertidos con el tipo de cambio de Ajustes. Revísalo.</p>';
-      }
-      if (d.err) h += '<p class="note" style="color:var(--danger)">Escribe el importe.</p>';
       h += '</div>';
-      h += '<div class="field"><label for="note-' + i + '">Concepto</label><input id="note-' + i + '" type="text" data-k="note" data-i="' + i + '" maxlength="80" placeholder="' +
-        (d.type === 'expense' ? 'Ej.: Café en la plaza' : d.type === 'adjust' ? 'Ajuste de efectivo' : 'Ej.: Cajero BNB') + '" value="' + esc(d.note) + '"/></div>';
-      if (d.type === 'expense') {
-        h += '<div class="field"><span class="flabel" id="cl-' + i + '">Categoría' + (d.guessed ? ' · <span style="font-weight:500">no la he reconocido, elige una</span>' : '') + '</span><div class="cats" role="group" aria-labelledby="cl-' + i + '">' +
-          allCats.map(c => '<button type="button" class="cat" data-k="category" data-v="' + esc(c.id) + '" data-i="' + i + '" aria-pressed="' + (d.category === c.id) + '" title="' + esc(c.name) + '">' +
-            '<span class="tile" style="background:' + esc(c.color) + '">' + svg(c.icon) + '</span><span>' + esc(catShort(c)) + '</span></button>').join('') + '</div></div>';
-        h += '<div class="field"><span class="flabel" id="wl-' + i + '">Para</span><div class="chips" role="group" aria-labelledby="wl-' + i + '">' +
-          WHO.map(w => '<button type="button" data-k="who" data-v="' + w.id + '" data-i="' + i + '" aria-pressed="' + (d.who === w.id) + '">' + esc(w.name) + '</button>').join('') + '</div></div>';
-        h += '<div class="field"><span class="flabel" id="pl-' + i + '">Pago</span><div class="seg" role="group" aria-labelledby="pl-' + i + '">' +
-          '<button type="button" data-k="method" data-v="cash" data-i="' + i + '" aria-pressed="' + (d.method !== 'qr') + '">Efectivo</button>' +
-          '<button type="button" data-k="method" data-v="qr" data-i="' + i + '" aria-pressed="' + (d.method === 'qr') + '">QR / tarjeta</button></div></div>';
-      } else if (d.type === 'cash_in') {
-        h += '<div class="field"><span class="flabel" id="sl-' + i + '">Origen</span><div class="seg" role="group" aria-labelledby="sl-' + i + '">' +
-          SOURCES.map(s => '<button type="button" data-k="source" data-v="' + s.id + '" data-i="' + i + '" aria-pressed="' + (d.source === s.id) + '">' + esc(s.short || s.name) + '</button>').join('') + '</div></div>';
-      }
-      h += '<div class="field"><label for="date-' + i + '">Fecha</label><input id="date-' + i + '" type="date" data-k="date" data-i="' + i + '" value="' + esc(d.date) + '" max="' + todayStr() + '"/></div>';
-      h += '</div></div>';
     });
     if (st.editId) {
       const t = S.txns.get(st.editId);
-      h += '<button type="button" class="danger-btn' + (st.armed ? ' armed' : '') + '" data-act="delete">' + (st.armed ? 'Toca otra vez para eliminar' : 'Eliminar movimiento') + '</button>';
+      h += '<button type="button" class="danger-btn' + (st.armed ? ' armed' : '') + '" data-act="delete"' + (S.canWrite ? '' : ' disabled') + '>' + (st.armed ? 'Toca otra vez para eliminar' : 'Eliminar movimiento') + '</button>';
       if (t) {
         const bits = [];
-        if (t.by) bits.push('Añadido por ' + t.by);
-        if (t.createdAt) bits.push(DF_SHORT.format(new Date(t.createdAt)) + ', ' + DF_TIME.format(new Date(t.createdAt)));
+        if (typeof t.by === 'string' && t.by) bits.push('Añadido por ' + t.by);
+        if (typeof t.createdAt === 'number' && isFinite(t.createdAt)) bits.push(DF_SHORT.format(new Date(t.createdAt)) + ', ' + DF_TIME.format(new Date(t.createdAt)));
         if (bits.length) h += '<p class="meta-line">' + esc(bits.join(' · ')) + '</p>';
       }
-    } else if (st.items.length > 0 && st.text && st.items.every(d => d.type === 'expense')) {
+    } else if (st.text && S.canWrite) {
       h += '<p class="meta-line">Revisa y toca <strong>Guardar</strong>. Puedes cambiar cualquier dato.</p>';
     }
     body.innerHTML = h;
     if (st.text) $('.q-text', body).textContent = st.text;
+    $$('.mini-note', body).forEach(el => {
+      const d = st.items[+el.dataset.i];
+      el.textContent = d.note || (d.type === 'expense' ? catById(d.category).name : d.type === 'cash_in' ? srcOf(d.source).name : 'Ajuste');
+    });
   }
 
   function onEntryClick(e) {
@@ -720,8 +847,10 @@
       setTimeout(() => { inp.focus(); inp.setSelectionRange(t.length, t.length); }, 320);
       return;
     }
-    if (act === 'remove') { st.items.splice(+b.dataset.i, 1); if (!st.items.length) closeSheet(); else renderSheet(); return; }
+    if (act === 'toggle') { const d = st.items[+b.dataset.i]; d.open = !d.open; renderSheet(); const m = $('.mini[data-i="' + b.dataset.i + '"]'); if (m) m.focus({ preventScroll: true }); return; }
+    if (act === 'remove') { st.items.splice(+b.dataset.i, 1); if (!st.items.length) closeSheet(); else { if (st.items.length === 1) st.items[0].open = true; renderSheet(); } return; }
     if (act === 'delete') {
+      if (!S.canWrite) return;
       if (!st.armed) { st.armed = true; renderSheet(); setTimeout(() => { if (S.sheet === st && st.armed) { st.armed = false; renderSheet(); } }, 4000); return; }
       const id = st.editId, prev = S.txns.get(id);
       closeSheet();
@@ -744,17 +873,32 @@
     if (k === 'amount' && d.err && parseAmount(el.value)) {
       d.err = false;
       const wrap = el.closest('.amount-in'); if (wrap) wrap.classList.remove('err');
-      const nt = wrap && wrap.parentNode.querySelector('.note[style]'); if (nt) nt.remove();
+      el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby');
+      const nt = $('#amt-err-' + el.dataset.i); if (nt) nt.remove();
     }
   }
 
   async function saveEntry() {
-    const st = S.sheet; if (!st || st.saving) return;
-    let bad = false;
-    st.items.forEach(d => { d.err = !parseAmount(d.amount); if (d.err) bad = true; if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date)) d.date = todayStr(); });
-    if (bad) { renderSheet(); const f = $('.amount-in.err input'); if (f) f.focus(); return; }
+    const st = S.sheet; if (!st || st.kind !== 'entry' || st.saving || !S.canWrite) return;
+    const today = todayStr();
+    let bad = -1;
+    st.items.forEach((d, i) => {
+      d.err = !parseAmount(d.amount);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date) || isNaN(parseYmd(d.date).getTime())) d.date = today;
+      d.dateErr = d.date > today;
+      if ((d.err || d.dateErr) && bad < 0) bad = i;
+      if (d.err || d.dateErr) d.open = true;
+    });
+    if (bad >= 0) {
+      renderSheet();
+      const f = $('#form-' + bad + ' [aria-invalid="true"]') || $('[aria-invalid="true"]');
+      if (f) f.focus();
+      return;
+    }
+    if (st.editId && !S.txns.has(st.editId)) { closeSheet(); toast('Este movimiento se eliminó en otro móvil.'); return; }
     st.saving = true; $('#sheet-ok').disabled = true;
     const now = Date.now();
+    // Cada borrador conserva su id: si se reintenta tras un fallo, se reescribe el mismo documento (sin duplicados).
     const writes = st.items.map((d, i) => {
       const amount = parseAmount(d.amount);
       const base = {
@@ -766,29 +910,43 @@
       if (d.currency && d.currency !== 'BOB' && d.origAmount && d.type !== 'adjust') Object.assign(base, { currency: d.currency, origAmount: d.origAmount });
       if (st.editId) {
         const prev = S.txns.get(st.editId) || {};
-        const keep = { createdAt: prev.createdAt || now, by: prev.by || S.me || null };
+        const keep = { createdAt: typeof prev.createdAt === 'number' ? prev.createdAt : now, by: prev.by || S.me || null };
         if (prev.text) keep.text = prev.text;
         if (prev.byId) keep.byId = prev.byId;
-        return { id: st.editId, doc: Object.assign(keep, base), prev };
+        return { d, id: st.editId, doc: Object.assign(keep, base), prev };
       }
-      const doc = Object.assign(base, { createdAt: now + i, by: S.me || null });
+      if (!d.id) d.id = newId();
+      const doc = Object.assign(base, { createdAt: d.createdAt || (d.createdAt = now + i), by: S.me || null });
       if (S.uid) doc.byId = S.uid;
       if (st.text) doc.text = st.text.slice(0, 300);
-      return { id: newId(), doc, prev: null };
+      return { d, id: d.id, doc, prev: null };
     });
+    const done = [];
     try {
-      for (const w of writes) await Store.put(w.id, w.doc);
+      for (const w of writes) { await Store.put(w.id, w.doc); done.push(w); }
+    } catch (err) {
+      st.saving = false;
+      if (S.sheet === st) {
+        if (done.length && !st.editId) {
+          st.items = st.items.filter(d => !done.some(w => w.d === d));
+          st.items.forEach(d => { d.open = st.items.length === 1 || d.open; });
+          toast('Se guardaron ' + done.length + ' de ' + writes.length + '. ' + errMsg(err));
+        } else toast(errMsg(err));
+        renderSheet();
+      } else toast(errMsg(err));
+      return;
+    }
+    if (S.sheet === st) {
       closeSheet();
       $('#say').value = ''; updateSend(); $('#live').innerHTML = '';
-      const msg = st.editId ? 'Cambios guardados' : writes.length > 1 ? writes.length + ' movimientos guardados' : writes[0].doc.type === 'cash_in' ? 'Entrada guardada' : 'Gasto guardado';
-      toast(msg, 'Deshacer', async () => {
-        try {
-          for (const w of writes) { if (w.prev) await Store.put(w.id, w.prev); else await Store.del(w.id); }
-        } catch (e2) { toast(errMsg(e2)); }
-      });
-    } catch (err) {
-      st.saving = false; renderSheet(); toast(errMsg(err));
     }
+    const msg = st.editId ? 'Cambios guardados' : writes.length > 1 ? writes.length + ' movimientos guardados' : writes[0].doc.type === 'cash_in' ? 'Entrada guardada' : 'Gasto guardado';
+    toast(msg, 'Deshacer', async () => {
+      try {
+        for (const w of writes) { if (w.prev) await Store.put(w.id, w.prev); else await Store.del(w.id); }
+        toast('Deshecho');
+      } catch (e2) { toast(errMsg(e2)); }
+    });
   }
 
   // ---- hoja: ajustes
@@ -802,9 +960,9 @@
     h += '<div class="set-sec"><h4>Este móvil</h4><div class="set-card" style="padding:12px 14px"><div class="seg" role="group" aria-label="Quién usa este móvil">' +
       PEOPLE.map(p => '<button type="button" data-set-me="' + p + '" aria-pressed="' + (S.me === p) + '">Soy ' + p + '</button>').join('') +
       '</div></div><p class="foot">Sirve para entender «para mí» y para saber quién anotó cada gasto.</p></div>';
-    h += '<div class="set-sec"><h4>Efectivo en mano</h4><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>Bolsillo calcula ' + esc(money(bal)) + '</small></label>' +
-      '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="' + esc(amountStr(bal < 0 ? 0 : bal)) + '"' + (ro ? ' disabled' : '') + '/>' +
-      '<button type="button" class="act" data-act="adjust"' + (ro ? ' disabled' : '') + '>Ajustar</button></div></div>' +
+    h += '<div class="set-sec"><h4>Efectivo en mano</h4><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>Qullqi calcula ' + esc(money(bal)) + '</small></label>' +
+      '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="' + esc(num(bal < 0 ? 0 : bal)) + '"' + (ro || S.adjusting ? ' disabled' : '') + '/>' +
+      '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
       '<p class="foot">Cuenta los billetes y escribe lo que tenéis. Se anota un ajuste por la diferencia.</p></div>';
     h += '<div class="set-sec"><h4>Tipo de cambio</h4><div class="set-card">' +
       ['USD', 'EUR'].map(c => '<div class="set-row"><label class="grow" for="rate-' + c + '">1 ' + (c === 'USD' ? 'dólar' : 'euro') + ' =</label><input class="inline" id="rate-' + c + '" data-rate="' + c + '" type="text" inputmode="decimal" value="' + esc(String(rt[c]).replace('.', ',')) + '"' + (ro ? ' disabled' : '') + '/><span>Bs</span></div>').join('') +
@@ -816,9 +974,11 @@
       '</ul><p class="foot">Añade palabras clave (por ejemplo, el nombre de la niñera) para que la categoría se elija sola al dictar.</p></div>';
     h += '<div class="set-sec"><h4>Datos</h4><div class="set-card">' +
       '<button type="button" class="set-row link-row" data-act="csv">' + (S.downloads ? 'Descargar movimientos (CSV)' : 'Copiar movimientos (CSV)') + '</button></div>' +
-      '<div id="csv-box"></div><p class="foot">' + (S.mode === 'shared' ? 'Los datos se guardan en Bolsillo y se comparten con quien tenga acceso. Se actualizan solos en todos los móviles.' : 'Los datos se guardan solo en este navegador.') + ' ' + S.txns.size + ' movimientos.</p></div>';
+      '<div id="csv-box"></div><p class="foot">' + (S.mode === 'shared' ? 'Los datos se guardan en Qullqi y se comparten con quien tenga acceso. Se actualizan solos en todos los móviles.' : 'Los datos se guardan solo en este navegador.') + ' ' + S.txns.size + ' movimientos.</p></div>';
     h += '<div class="set-sec"><h4>Cómo dictar</h4><div class="set-card" style="padding:12px 14px;font-size:15px;line-height:1.55">' +
       '<q>Me acabo de gastar 25 bolivianos en un café para Sol y Pol</q><br><q>120 en el súper para toda la familia</q><br><q>Taxi a Santa Cruz 350 con QR</q><br><q>Ayer pagamos 150 a la señora de la limpieza</q><br><q>Saqué 1000 del cajero</q><br><q>Cambié 100 dólares y me dieron 950</q><br><q>Pan 10, leche 12 y taxi 15</q></div></div>';
+    h += '<div class="set-sec"><h4>Acerca de</h4><div class="set-card about">' + LOGO +
+      '<p><strong>Qullqi</strong>«Plata, dinero» en quechua y aimara. La plata de la familia, anotada en un momento.</p></div></div>';
     body.innerHTML = h;
     $$('[data-cat-edit]', body).forEach(b => {
       const c = cats().find(x => x.id === b.dataset.catEdit); if (!c) return;
@@ -842,23 +1002,36 @@
       return;
     }
     if (b.dataset.act === 'adjust') {
-      const v = parseAmount($('#adj-in').value);
-      const raw = $('#adj-in').value.trim();
-      const target = v === null && /^0+([.,]0+)?$/.test(raw) ? 0 : v;
-      if (target === null) { toast('Escribe cuánto efectivo tenéis.'); $('#adj-in').focus(); return; }
-      const diff = r2(target - balance(allTxns()));
-      if (!diff) { toast('El efectivo ya cuadra.'); return; }
-      const id = newId();
-      const doc = { type: 'adjust', amount: diff, date: todayStr(), note: 'Ajuste de efectivo', createdAt: Date.now(), updatedAt: Date.now(), by: S.me || null };
-      try {
-        await Store.put(id, doc);
-        $('#adj-in').value = '';
-        renderSheet();
-        toast('Efectivo ajustado a ' + money(target), 'Deshacer', () => Store.del(id).catch(e2 => toast(errMsg(e2))));
-      } catch (err) { toast(errMsg(err)); }
+      const inp = $('#adj-in');
+      const target = parseCashInput(inp.value);
+      if (target === null) { toast('Escribe cuánto efectivo tenéis.'); inp.focus(); return; }
+      inp.value = '';
+      const okSet = await setCashTo(target);
+      if (S.sheet === st) renderSheet();
+      if (!okSet) { const i2 = $('#adj-in'); if (i2) i2.value = amountStr(target); }
       return;
     }
     if (b.dataset.act === 'csv') { exportCsv(); return; }
+  }
+  function parseCashInput(v) {
+    const raw = String(v || '').trim();
+    if (/^0+([.,]0+)?$/.test(raw)) return 0;
+    return parseAmount(raw);
+  }
+  // Ajusta el efectivo a una cantidad: anota la diferencia. Protegido contra dobles toques.
+  async function setCashTo(target, note) {
+    if (S.adjusting || !S.canWrite) return false;
+    S.adjusting = true;
+    try {
+      const diff = r2(target - balance(allTxns()));
+      if (!diff) { toast('El efectivo ya cuadra.'); return true; }
+      const id = newId();
+      const doc = { type: 'adjust', amount: diff, date: todayStr(), note: note || 'Ajuste de efectivo', createdAt: Date.now(), updatedAt: Date.now(), by: S.me || null };
+      await Store.put(id, doc);
+      toast('Efectivo: ' + money(target), 'Deshacer', () => Store.del(id).catch(e2 => toast(errMsg(e2))));
+      return true;
+    } catch (err) { toast(errMsg(err)); return false; }
+    finally { S.adjusting = false; }
   }
   function onSettingsChange(e) {
     const el = e.target;
@@ -869,10 +1042,11 @@
     }
   }
 
-  function meKey() { return 'bolsillo.me.' + (S.uid || 'local'); }
+  function meKey() { return 'qullqi.me.' + (S.uid || 'local'); }
   function setMe(name) {
     S.me = name; ls.set(meKey(), name);
     if (S.mode === 'shared' && S.uid && S.canWrite) Store.patchConfig({ members: { [S.uid]: name } }).catch(() => {});
+    if (S.sheet && S.sheet.kind === 'settings') renderSheet();
     renderHome();
   }
 
@@ -884,7 +1058,7 @@
     h += '<div class="field"><label for="cat-name">Nombre</label><input id="cat-name" type="text" maxlength="24" value="' + esc(st.name) + '" placeholder="Ej.: Deporte"/></div>';
     if (!st.builtin) {
       h += '<div class="field"><span class="flabel">Color</span><div class="colors" role="group" aria-label="Color">' +
-        CUSTOM_COLORS.map(c => '<button type="button" data-color="' + c + '" aria-label="Color ' + c + '" aria-pressed="' + (st.color === c) + '" style="background:' + c + '"></button>').join('') + '</div></div>';
+        CUSTOM_COLORS.map(c => '<button type="button" data-color="' + c + '" aria-label="' + (COLOR_NAMES[c] || 'Color') + '" aria-pressed="' + (st.color === c) + '" style="--sw:' + c + '"></button>').join('') + '</div></div>';
     }
     h += '<div class="field"><label for="cat-kw">Palabras clave</label><textarea id="cat-kw" placeholder="Separadas por comas: gimnasio, yoga, piscina">' + esc(st.keywords) + '</textarea>' +
       '<p class="help">Si dictas alguna de estas palabras, el gasto irá a esta categoría.</p></div>';
@@ -920,7 +1094,11 @@
 
   // ---- CSV
   function csvText() {
-    const q = v => { const s = String(v == null ? '' : v); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const q = (v, isNum) => {
+      let s = String(v == null ? '' : v);
+      if (!isNum && /^[=+\-@\t\r]/.test(s)) s = "'" + s; // evita fórmulas al abrir en una hoja de cálculo
+      return /[",\n;\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
     const rows = [['fecha', 'tipo', 'importe_bs', 'categoria', 'para', 'pago', 'concepto', 'anotado_por', 'texto_dictado']];
     allTxns().forEach(t => rows.push([
       t.date, t.type === 'expense' ? 'gasto' : t.type === 'cash_in' ? 'entrada' : 'ajuste',
@@ -929,12 +1107,12 @@
       t.type === 'expense' ? whoName(t.who) : '', t.type === 'expense' ? (t.method === 'qr' ? 'QR/tarjeta' : 'efectivo') : '',
       t.note || '', t.by || '', t.text || ''
     ]));
-    return rows.map(r => r.map(q).join(',')).join('\n');
+    return rows.map((r, ri) => r.map((v, ci) => q(v, ri > 0 && ci === 2)).join(',')).join('\n');
   }
   function exportCsv() {
     const text = csvText();
     if (S.downloads) {
-      S.downloads.save({ filename: 'bolsillo-' + todayStr() + '.csv', data: text })
+      S.downloads.save({ filename: 'qullqi-' + todayStr() + '.csv', data: text })
         .catch(e => { if (e && e.code !== 'declined') copyCsv(text); });
       return;
     }
@@ -971,6 +1149,7 @@
     d.onFinal(({ text }) => { S.finals = S.finals ? S.finals + text : String(text || '').replace(/^\s+/, ''); S.partial = ''; renderLive(); });
     d.onState(({ state, reason }) => {
       S.dictState = state; renderMic();
+      if (state === 'listening') S.heard = true;
       if (state === 'idle') {
         const text = (S.finals || S.partial || '').trim();
         const want = S.wantProcess; S.wantProcess = false;
@@ -979,7 +1158,8 @@
         else if (reason === 'unavailable') { /* lo gestiona start() */ }
         else if (reason === 'rate_limited') toast('El micrófono está ocupado. Prueba en unos segundos.');
         else if (reason === 'upstream_error') toast('No se pudo usar el micrófono. Inténtalo otra vez.');
-        else if (want && !text && (reason === 'stopped' || reason === 'viewer_stopped')) toast('No te he oído. Prueba otra vez, más cerca del móvil.');
+        else if (reason === 'dismissed') toast('Para dictar, permite el micrófono cuando te lo pida.');
+        else if (want && !text && S.heard && (reason === 'stopped' || reason === 'viewer_stopped')) toast('No te he oído. Prueba otra vez, más cerca del móvil.');
         if (!text) $('#live').innerHTML = '';
       }
     });
@@ -999,7 +1179,7 @@
       return;
     }
     if (S.dictState !== 'idle') { d.stop().catch(() => {}); return; }
-    S.finals = ''; S.partial = ''; S.wantProcess = true; renderLive();
+    S.finals = ''; S.partial = ''; S.wantProcess = true; S.heard = false; renderLive();
     const opts = S.dictLang ? { language: 'es' } : undefined;
     d.start(opts).catch(err => {
       S.wantProcess = false;
@@ -1009,6 +1189,7 @@
       else if (c === 'rate_limited') toast('El micrófono está ocupado. Prueba en unos segundos.');
       else if (c === 'upstream_error') toast('No se pudo usar el micrófono. Inténtalo otra vez.');
       else if (c === 'no_gesture') toast('Toca el micrófono otra vez.');
+      else if (c === 'dismissed') toast('Para dictar, permite el micrófono cuando te lo pida.');
     });
   }
 
@@ -1016,6 +1197,7 @@
   function updateSend() { $('#send').disabled = !$('#say').value.trim(); }
   function wire() {
     $$('[data-icon]').forEach(el => { el.outerHTML = svg(el.dataset.icon); });
+    $$('[data-logo]').forEach(el => { el.outerHTML = LOGO; });
     $('#btn-settings').innerHTML = svg('gear');
     $('#send').innerHTML = svg('send');
     $('#m-prev').innerHTML = svg('left');
@@ -1039,19 +1221,32 @@
       }
       const me = e.target.closest && e.target.closest('[data-me]');
       if (me) { setMe(me.dataset.me); return; }
+      if (e.target.closest && e.target.closest('#fix-cash')) { openSheet({ kind: 'settings', focus: '#adj-in' }); return; }
+      if (e.target.closest && e.target.closest('#start-zero')) { ls.set('qullqi.started', '1'); renderHome(); return; }
+    });
+    document.addEventListener('submit', async e => {
+      if (e.target.id !== 'start-form') return;
+      e.preventDefault();
+      const inp = $('#start-in');
+      const v = parseCashInput(inp.value);
+      if (v === null) { toast('Escribe cuánto efectivo tenéis, o empieza desde 0.'); inp.focus(); return; }
+      if (v === 0) { ls.set('qullqi.started', '1'); renderHome(); return; }
+      if (await setCashTo(v, 'Efectivo inicial')) ls.set('qullqi.started', '1');
     });
 
     $('#hist-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.hist.f = b.dataset.f; S.hist.limit = 80; renderHist(); });
-    $('#q').addEventListener('input', e => { S.hist.q = e.target.value; S.hist.limit = 80; renderHist(); });
+    let qTimer = null;
+    $('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { S.hist.q = e.target.value; S.hist.limit = 80; renderHist(); }, 150); });
     $('#scr-hist').addEventListener('click', e => {
-      if (e.target.closest('#clear-cat')) { S.hist.cat = null; S.hist.month = null; renderHist(); }
+      if (e.target.closest('#clear-cat')) { S.hist.cat = null; S.hist.who = null; S.hist.month = null; S.hist.f = 'all'; renderHist(); }
       if (e.target.closest('#more')) { S.hist.limit += 120; renderHist(); }
     });
     $('#m-prev').addEventListener('click', () => { const [y, m] = S.month.split('-').map(Number); S.month = ymd(new Date(y, m - 2, 1)).slice(0, 7); renderSum(); });
     $('#m-next').addEventListener('click', () => { const [y, m] = S.month.split('-').map(Number); S.month = ymd(new Date(y, m, 1)).slice(0, 7); renderSum(); });
     $('#sum-body').addEventListener('click', e => {
-      const b = e.target.closest('[data-cat]'); if (!b) return;
-      S.hist.cat = b.dataset.cat; S.hist.month = S.month; S.hist.f = 'expense'; S.hist.q = ''; $('#q').value = ''; S.hist.limit = 80;
+      const b = e.target.closest('[data-cat], [data-who]'); if (!b) return;
+      S.hist.cat = b.dataset.cat || null; S.hist.who = b.dataset.who || null;
+      S.hist.month = S.month; S.hist.f = 'expense'; S.hist.q = ''; $('#q').value = ''; S.hist.limit = 80;
       setTab('hist');
     });
 
@@ -1069,11 +1264,12 @@
       else if (st.kind === 'cat') saveCat();
     });
     $('#sheet-cancel').addEventListener('click', () => { if (S.sheet && S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else closeSheet(); });
-    $('#scrim').addEventListener('click', closeSheet);
+    // Tocar fuera no descarta un gasto a medio revisar (hay que usar Cancelar)
+    $('#scrim').addEventListener('click', () => { if (S.sheet && S.sheet.kind !== 'entry') closeSheet(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sheet) { e.preventDefault(); if (S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else closeSheet(); } });
     // focus trap básico
     $('#sheet').addEventListener('keydown', e => {
-      if (e.key !== 'Tab') return;
+      if (e.key !== 'Tab' || !S.sheet) return;
       const f = $$('#sheet button:not([disabled]):not([hidden]), #sheet input:not([disabled]), #sheet textarea').filter(x => x.offsetParent !== null);
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
@@ -1103,6 +1299,6 @@
     const db = await use('db');
     if (db) Store.initShared(db); else Store.initLocal('nodb');
   }
-  window.__bolsillo = { S, Store, processText, balance, allTxns };
+  window.__qullqi = { S, Store, processText, balance, allTxns };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

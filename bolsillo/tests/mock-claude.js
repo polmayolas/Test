@@ -1,6 +1,7 @@
 // Simulador mínimo del runtime de artifacts (db compartida, user, dictation, downloads)
 // para pruebas locales con Playwright. Se inyecta con page.addInitScript.
-// Config opcional antes de cargar: window.__MOCK = { uid, canWrite, noDictation, noDb, failWrites }
+// Config opcional antes de cargar: window.__MOCK = { uid, canWrite, noDictation, noDb, failWrites,
+//   failAfterSets (n: las escrituras set() fallan a partir de la n+1), writeDelay (ms), configDelay (ms) }
 (function () {
   const cfg = Object.assign({ uid: 'u1', canWrite: true }, window.__MOCK || {});
   const KEY = '__mockdb';
@@ -12,14 +13,27 @@
   const snapDoc = (id, data) => ({ id, exists: data !== undefined, data: () => data && JSON.parse(JSON.stringify(data)), metadata: { fromCache: false, hasPendingWrites: false } });
   const err = (code) => Promise.reject({ code, message: code });
   function merge(a, b) { for (const k in b) { if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k])) a[k] = merge(a[k] && typeof a[k] === 'object' ? a[k] : {}, b[k]); else a[k] = b[k]; } return a; }
+  let sets = 0;
+  const sleep = ms => new Promise(r => setTimeout(r, ms || 0));
   function docRef(path) {
     return {
       id: path.split('/').pop(), path,
       get: async () => snapDoc(path.split('/').pop(), load()[path]),
-      set: async d => { if (!cfg.canWrite || cfg.failWrites) return err(cfg.failWrites || 'invalid_argument'); const o = load(); o[path] = JSON.parse(JSON.stringify(d)); save(o); fire(); },
+      set: async d => {
+        await sleep(cfg.writeDelay);
+        if (!cfg.canWrite || cfg.failWrites) return err(cfg.failWrites || 'invalid_argument');
+        if (cfg.failAfterSets != null && sets >= cfg.failAfterSets) return err('quota_exceeded');
+        sets++;
+        const o = load(); o[path] = JSON.parse(JSON.stringify(d)); save(o); fire();
+      },
       update: async d => { if (!cfg.canWrite) return err('invalid_argument'); const o = load(); if (!o[path]) return err('invalid_argument'); o[path] = merge(o[path], JSON.parse(JSON.stringify(d))); save(o); fire(); },
       delete: async () => { if (!cfg.canWrite) return err('invalid_argument'); const o = load(); delete o[path]; save(o); fire(); },
-      onSnapshot(next) { const fn = () => next(snapDoc(path.split('/').pop(), load()[path])); listeners.add(fn); setTimeout(fn, 30); return () => listeners.delete(fn); }
+      onSnapshot(next) {
+        const fn = () => next(snapDoc(path.split('/').pop(), load()[path]));
+        const delay = path === 'config/main' && cfg.configDelay ? cfg.configDelay : 30;
+        setTimeout(() => { listeners.add(fn); fn(); }, delay);
+        return () => listeners.delete(fn);
+      }
     };
   }
   function colRef(path) {
@@ -52,6 +66,7 @@
     onFinal: fn => { h.final.add(fn); return () => h.final.delete(fn); },
     onState: fn => { h.state.add(fn); return () => h.state.delete(fn); }
   });
+  window.__mockCfg = cfg;
   window.__mockSpeak = (text) => { emit('partial', { text: text.slice(0, 8) }); emit('partial', { text: '' }); emit('final', { text }); };
   window.__downloads = [];
   const downloads = Object.freeze({ save: async (o) => { window.__downloads.push(o); } });
