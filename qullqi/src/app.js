@@ -137,7 +137,7 @@
   const S = {
     mode: 'loading', // loading | shared | local
     txns: new Map(), config: {}, configExists: false,
-    loaded: false, stale: false, canWrite: true, uid: null, configLoaded: false, storageOk: true,
+    loaded: false, stale: false, canWrite: true, uid: null, configLoaded: false, storageOk: true, txv: 0,
     me: null,
     tab: 'home', month: monthOf(todayStr()),
     hist: { f: 'all', q: '', cat: null, who: null, month: null, limit: 80 },
@@ -147,7 +147,14 @@
     sheet: null
   };
 
+  let catCache = { cfg: null, list: null };
   function cats() {
+    if (catCache.cfg === S.config && catCache.list) return catCache.list;
+    const list = buildCats();
+    catCache = { cfg: S.config, list };
+    return list;
+  }
+  function buildCats() {
     const ov = S.config.catOverrides || {};
     const kw = v => Array.isArray(v) ? v.filter(x => typeof x === 'string' && x.trim()).slice(0, 60) : [];
     const str = v => typeof v === 'string' ? v.trim().slice(0, 24) : '';
@@ -174,9 +181,14 @@
   function whoName(id) { const w = WHO.find(x => x.id === id); return w ? w.name : 'Familia'; }
   function srcOf(id) { return SOURCES.find(s => s.id === id) || SOURCES[2]; }
 
+  let txCache = { v: -1, list: [] };
   function allTxns() {
+    if (txCache.v !== S.txv) txCache = { v: S.txv, list: validTxns(S.txns) };
+    return txCache.list;
+  }
+  function validTxns(map) {
     const out = [];
-    S.txns.forEach((d, id) => {
+    map.forEach((d, id) => {
       if (!d || typeof d !== 'object' || typeof d.amount !== 'number' || !isFinite(d.amount) || Math.abs(d.amount) > 1e9) return;
       if (typeof d.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d.date) || ymd(parseYmd(d.date)) !== d.date) return;
       if (d.type !== 'expense' && d.type !== 'cash_in' && d.type !== 'adjust') return;
@@ -217,7 +229,7 @@
       let data = null;
       try { data = JSON.parse(ls.get(LOCAL_KEY) || 'null'); } catch (e) { data = null; }
       data = data && typeof data === 'object' ? data : {};
-      S.txns = new Map(Object.entries(data.txns && typeof data.txns === 'object' ? data.txns : {}));
+      S.txns = new Map(Object.entries(data.txns && typeof data.txns === 'object' ? data.txns : {})); S.txv++;
       S.config = data.config && typeof data.config === 'object' ? data.config : {};
     },
     saveLocal() {
@@ -232,8 +244,9 @@
       const subTxns = () => db.collection('txns').onSnapshot(snap => {
         const m = new Map();
         snap.docs.forEach(d => { if (d.exists) m.set(d.id, d.data()); });
-        S.txns = m; S.loaded = true;
-        if (!snap.metadata.fromCache) { S.confirmed = true; S.stale = false; clearTimeout(timer); }
+        S.txns = m; S.loaded = true; S.txv++;
+        S.confirmed = !snap.metadata.fromCache;
+        if (S.confirmed) { S.stale = false; clearTimeout(timer); }
         renderAll();
       }, err => {
         S.loaded = true; S.stale = true; S.confirmed = false; clearTimeout(timer); renderAll();
@@ -260,8 +273,8 @@
     async put(id, doc) {
       if (S.mode === 'local') {
         const had = S.txns.has(id), prev = S.txns.get(id);
-        S.txns.set(id, doc);
-        if (!this.saveLocal()) { if (had) S.txns.set(id, prev); else S.txns.delete(id); throw { code: 'local_storage' }; }
+        S.txns.set(id, doc); S.txv++;
+        if (!this.saveLocal()) { if (had) S.txns.set(id, prev); else S.txns.delete(id); S.txv++; throw { code: 'local_storage' }; }
         renderAll(); return;
       }
       return this.retry(() => this.db.collection('txns').doc(id).set(doc));
@@ -269,8 +282,8 @@
     async del(id) {
       if (S.mode === 'local') {
         const prev = S.txns.get(id);
-        S.txns.delete(id);
-        if (!this.saveLocal()) { if (prev) S.txns.set(id, prev); throw { code: 'local_storage' }; }
+        S.txns.delete(id); S.txv++;
+        if (!this.saveLocal()) { if (prev) S.txns.set(id, prev); S.txv++; throw { code: 'local_storage' }; }
         renderAll(); return;
       }
       return this.retry(() => this.db.collection('txns').doc(id).delete());
@@ -401,6 +414,10 @@
     renderHome();
     if (S.tab === 'hist') renderHist();
     if (S.tab === 'sum') renderSum();
+    if (S.sheet && S.sheet.kind === 'settings') {
+      const a = document.activeElement;
+      if (!(a && $('#sheet-body').contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'))) renderSheet();
+    }
   }
 
   function renderBanners() {
@@ -425,7 +442,7 @@
   // ---------------------------------------------------------------- render: inicio
   function renderHome() {
     $('#today-label').textContent = cap(DF_LONG.format(new Date()));
-    if (!S.loaded) {
+    if (!S.loaded || (S.mode === 'shared' && !S.confirmed && !S.txns.size)) {
       $('#cash-total').innerHTML = '<span class="cur">Bs</span>—';
       $('#recent').innerHTML = '<li class="loading">Cargando…</li>';
       return;
@@ -440,7 +457,7 @@
     if (showStart && !startBox.firstChild) {
       startBox.innerHTML = '<p class="start-q"><label for="start-in">¿Cuánto efectivo tenéis ahora?</label></p><form class="start" id="start-form" autocomplete="off">' +
         '<div class="amt-box"><span>Bs</span><input id="start-in" type="text" inputmode="decimal" placeholder="0"/></div>' +
-        '<button class="btn-primary" type="submit">Empezar</button></form>' +
+        '<button class="btn-primary" type="button" id="start-go">Empezar</button></form>' +
         '<p class="start-help">Cuenta los billetes para partir de la cantidad real, o <button type="button" class="inline-link" id="start-zero">empieza desde 0</button>.</p>';
     } else if (!showStart && startBox.firstChild) startBox.innerHTML = '';
     $('#cash-stats').hidden = showStart;
@@ -768,7 +785,7 @@
       method: it.method || 'cash', source: it.source || 'atm', date: it.date || todayStr(), note: it.note || '',
       currency: it.currency || 'BOB', origAmount: it.amount, rateUsed: it.rateUsed, estimated: !!(it.flags && it.flags.estimated),
       guessed: !!(it.flags && it.flags.categoryGuessed),
-      huge: !!(it.flags && it.flags.huge),
+      huge: !!(it.flags && it.flags.huge), origBs: it.amountBs,
       open: !!(it.flags && (it.flags.noAmount || it.flags.categoryGuessed || it.flags.estimated || it.flags.huge))
     };
   }
@@ -779,7 +796,7 @@
     return {
       type: t.type === 'adjust' ? 'adjust' : t.type, amount: amountStr(Math.abs(t.amount)), sign: t.amount < 0 ? -1 : 1,
       category: t.category || 'otros', who: t.who || 'familia', method: t.method || 'cash', source: t.source || 'other',
-      date: t.date, note: typeof t.note === 'string' ? t.note : '', currency: t.currency || 'BOB', origAmount: t.origAmount, guessed: false, open: true
+      date: t.date, note: typeof t.note === 'string' ? t.note : '', currency: t.currency || 'BOB', origAmount: t.origAmount, origBs: Math.abs(t.amount), guessed: false, open: true
     };
   }
 
@@ -810,9 +827,10 @@
       (d.err ? ' aria-invalid="true" aria-describedby="amt-err-' + i + '"' : '') + '/></div>';
     if (d.huge && !d.err) h += '<p class="note warn">Es un importe muy alto. Revísalo antes de guardar.</p>';
     if (d.err) h += '<p class="note err-msg" id="amt-err-' + i + '">Escribe el importe (solo números, por ejemplo 25 o 12,50).</p>';
-    if (d.type === 'cash_in' && d.currency !== 'BOB' && d.origAmount) {
+    const convValid = parseAmount(d.amount) === d.origBs;
+    if (d.type === 'cash_in' && d.currency !== 'BOB' && d.origAmount && convValid) {
       h += '<p class="note' + (d.estimated ? ' warn' : '') + '">' + esc(num(d.origAmount) + ' ' + d.currency) + (d.estimated ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) + ' (tipo de cambio de Ajustes). Revisa lo que te dieron.' : (d.rateUsed ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) : '')) + '</p>';
-    } else if (d.type === 'expense' && d.currency && d.currency !== 'BOB' && d.origAmount) {
+    } else if (d.type === 'expense' && d.currency && d.currency !== 'BOB' && d.origAmount && convValid) {
       h += '<p class="note warn">' + esc(num(d.origAmount) + ' ' + d.currency) + ' convertidos con el tipo de cambio de Ajustes. Revísalo.</p>';
     }
     h += '</div>';
@@ -877,6 +895,7 @@
       h += '<p class="meta-line">Revisa y toca <strong>Guardar</strong>. Puedes cambiar cualquier dato.</p>';
     }
     body.innerHTML = h;
+    if (st.saving) $$('input, button, textarea', body).forEach(el => { el.disabled = true; });
     if (st.text) $('.q-text', body).textContent = st.text;
     $$('.mini-note', body).forEach(el => {
       const d = st.items[+el.dataset.i];
@@ -885,7 +904,7 @@
   }
 
   function onEntryClick(e) {
-    const st = S.sheet; if (!st || st.kind !== 'entry') return;
+    const st = S.sheet; if (!st || st.kind !== 'entry' || st.saving) return;
     const b = e.target.closest('button'); if (!b) return;
     const act = b.dataset.act;
     if (act === 'edit-text') {
@@ -917,7 +936,7 @@
     renderSheet();
   }
   function onEntryInput(e) {
-    const st = S.sheet; if (!st || st.kind !== 'entry') return;
+    const st = S.sheet; if (!st || st.kind !== 'entry' || st.saving) return;
     const el = e.target; const k = el.dataset && el.dataset.k; if (!k) return;
     const d = st.items[+el.dataset.i];
     d[k] = el.value;
@@ -959,7 +978,7 @@
       };
       if (d.type === 'expense') Object.assign(base, { category: d.category, who: d.who, method: d.method === 'qr' ? 'qr' : 'cash' });
       if (d.type === 'cash_in') Object.assign(base, { source: d.source || 'other' });
-      if (d.currency && d.currency !== 'BOB' && d.origAmount && d.type !== 'adjust') Object.assign(base, { currency: d.currency, origAmount: d.origAmount });
+      if (d.currency && d.currency !== 'BOB' && d.origAmount && d.type !== 'adjust' && amount === d.origBs) Object.assign(base, { currency: d.currency, origAmount: d.origAmount });
       if (st.editId) {
         const prev = S.txns.get(st.editId) || {};
         const keep = { createdAt: typeof prev.createdAt === 'number' ? prev.createdAt : now, by: prev.by || S.me || null };
@@ -1009,6 +1028,7 @@
     const bal = balance(allTxns());
     const ro = !S.canWrite;
     const waiting = !dataReady();
+    const cfgWait = S.mode === 'shared' && !S.configLoaded;
     let h = '';
     h += '<div class="set-sec"><h3>Este móvil</h3><div class="set-card" style="padding:12px 14px"><div class="seg" role="group" aria-label="Quién usa este móvil">' +
       PEOPLE.map(p => '<button type="button" data-set-me="' + p + '" aria-pressed="' + (S.me === p) + '">Soy ' + p + '</button>').join('') +
@@ -1018,12 +1038,12 @@
       '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
       '<p class="foot">Cuenta los billetes y escribe lo que tenéis. Se anota un ajuste por la diferencia.</p></div>';
     h += '<div class="set-sec"><h3>Tipo de cambio</h3><div class="set-card">' +
-      ['USD', 'EUR'].map(c => '<div class="set-row"><label class="grow" for="rate-' + c + '">1 ' + (c === 'USD' ? 'dólar' : 'euro') + ' =</label><input class="inline" id="rate-' + c + '" data-rate="' + c + '" type="text" inputmode="decimal" value="' + esc(String(rt[c]).replace('.', ',')) + '"' + (ro ? ' disabled' : '') + '/><span>Bs</span></div>').join('') +
+      ['USD', 'EUR'].map(c => '<div class="set-row"><label class="grow" for="rate-' + c + '">1 ' + (c === 'USD' ? 'dólar' : 'euro') + ' =</label><input class="inline" id="rate-' + c + '" data-rate="' + c + '" type="text" inputmode="decimal" value="' + esc(String(rt[c]).replace('.', ',')) + '"' + (ro || cfgWait ? ' disabled' : '') + '/><span>Bs</span></div>').join('') +
       '</div><p class="foot">Solo se usa si dictas un cambio sin decir cuántos bolivianos te dieron.</p></div>';
     h += '<div class="set-sec"><h3>Categorías</h3><ul class="set-card list">' +
-      cats().map(c => '<li><button type="button" class="set-row" data-cat-edit="' + esc(c.id) + '"' + (ro ? ' disabled' : '') + '><span class="tile sm" style="background:' + esc(c.color) + '">' + svg(c.icon) + '</span>' +
+      cats().map(c => '<li><button type="button" class="set-row" data-cat-edit="' + esc(c.id) + '"' + (ro || cfgWait ? ' disabled' : '') + '><span class="tile sm" style="background:' + esc(c.color) + '">' + svg(c.icon) + '</span>' +
         '<span class="grow"><span class="cn"></span><small class="ck"></small></span>' + svg('right', ' class="chev"') + '</button></li>').join('') +
-      (ro ? '' : '<li><button type="button" class="set-row link-row" data-cat-edit="__new">' + svg('plus', ' style="width:20px;height:20px"') + '<span class="grow">Añadir categoría</span></button></li>') +
+      (ro || cfgWait ? '' : '<li><button type="button" class="set-row link-row" data-cat-edit="__new">' + svg('plus', ' style="width:20px;height:20px"') + '<span class="grow">Añadir categoría</span></button></li>') +
       '</ul><p class="foot">Añade palabras clave (por ejemplo, el nombre de la niñera) para que la categoría se elija sola al dictar.</p></div>';
     h += '<div class="set-sec"><h3>Datos</h3><div class="set-card">' +
       '<button type="button" class="set-row link-row" data-act="csv">' + (S.downloads ? 'Descargar movimientos (CSV)' : 'Copiar movimientos (CSV)') + '</button></div>' +
@@ -1086,7 +1106,16 @@
       // si un intento anterior no se confirmó, se reutiliza su id para no duplicar el ajuste
       const pend = S.pendingAdjust && S.pendingAdjust.target === target ? S.pendingAdjust.id : null;
       const id = initial ? 'efectivo-inicial' : (pend || newId());
-      const diff = r2(target - balance(allTxns().filter(t => t.id !== id)));
+      // el saldo se calcula con una lectura fresca del servidor, nunca con una copia en caché
+      let base = allTxns();
+      if (S.mode === 'shared') {
+        let snap;
+        try { snap = await withTimeout(Store.db.collection('txns').get(), 10000); } catch (e) { snap = null; }
+        if (!snap || (snap.metadata && snap.metadata.fromCache)) { toast('Sin conexión: no se puede comprobar el efectivo ahora. Inténtalo con señal.'); return false; }
+        const m = new Map(); snap.docs.forEach(d => { if (d.exists) m.set(d.id, d.data()); });
+        base = validTxns(m);
+      }
+      const diff = r2(target - balance(base.filter(t => t.id !== id)));
       if (!diff) { toast('El efectivo ya cuadra.'); S.pendingAdjust = null; return true; }
       const doc = { type: 'adjust', amount: diff, date: todayStr(), note: note || 'Ajuste de efectivo', createdAt: Date.now(), updatedAt: Date.now(), by: S.me || null };
       S.pendingAdjust = { id, target };
@@ -1224,7 +1253,8 @@
       if (state === 'idle') {
         const text = (S.finals || S.partial || '').trim();
         const want = S.wantProcess; S.wantProcess = false;
-        if (want && text) { $('#live').innerHTML = ''; processText(text); }
+        if (want && text && S.sheet) { $('#live').innerHTML = ''; $('#say').value = text; updateSend(); toast('He dejado lo dictado en el campo de texto.'); }
+        else if (want && text) { $('#live').innerHTML = ''; processText(text); }
         else if (reason === 'not_granted') { S.dict = null; renderMic(); toast('Dictado desactivado. Usa el micrófono del teclado.'); }
         else if (reason === 'unavailable' && S.heard) toast('El dictado no está disponible ahora. Usa el micrófono del teclado.');
         else if (reason === 'rate_limited') toast('El micrófono está ocupado. Prueba en unos segundos.');
@@ -1276,7 +1306,10 @@
 
     $('#mic').addEventListener('click', onMic);
     $('#say').addEventListener('input', updateSend);
-    $('#typebar').addEventListener('submit', e => { e.preventDefault(); const v = $('#say').value; if (v.trim()) { $('#say').blur(); processText(v); } });
+    const sendTyped = () => { const v = $('#say').value; if (v.trim()) { $('#say').blur(); processText(v); } };
+    $('#typebar').addEventListener('submit', e => { e.preventDefault(); sendTyped(); });
+    $('#say').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); sendTyped(); } });
+    $('#send').addEventListener('click', e => { e.preventDefault(); sendTyped(); });
     $('#add-expense').addEventListener('click', () => openSheet({ kind: 'entry', items: [blankDraft('expense')], focus: '#amt-0' }));
     $('#add-cash').addEventListener('click', () => { const d = blankDraft('cash_in'); d.source = 'atm'; openSheet({ kind: 'entry', items: [d], focus: '#amt-0' }); });
     $('#btn-settings').addEventListener('click', () => openSheet({ kind: 'settings' }));
@@ -1295,15 +1328,18 @@
       if (e.target.closest && e.target.closest('#fix-cash')) { openSheet({ kind: 'settings', focus: '#adj-in' }); return; }
       if (e.target.closest && e.target.closest('#start-zero')) { ls.set('qullqi.started', '1'); renderHome(); return; }
     });
-    document.addEventListener('submit', async e => {
-      if (e.target.id !== 'start-form') return;
-      e.preventDefault();
-      const inp = $('#start-in');
+    const startNow = async () => {
+      if (S.starting) return;
+      const inp = $('#start-in'); if (!inp) return;
       const v = parseCashInput(inp.value);
       if (v === null) { toast('Escribe cuánto efectivo tenéis, o empieza desde 0.'); inp.focus(); return; }
       if (v === 0) { ls.set('qullqi.started', '1'); renderHome(); return; }
-      if (await setCashTo(v, 'Efectivo inicial')) ls.set('qullqi.started', '1');
-    });
+      S.starting = true;
+      try { if (await setCashTo(v, 'Efectivo inicial')) ls.set('qullqi.started', '1'); } finally { S.starting = false; }
+    };
+    document.addEventListener('submit', e => { if (e.target.id === 'start-form') { e.preventDefault(); startNow(); } });
+    document.addEventListener('keydown', e => { if (e.target && e.target.id === 'start-in' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); startNow(); } });
+    document.addEventListener('click', e => { if (e.target.closest && e.target.closest('#start-go')) { e.preventDefault(); startNow(); } });
 
     $('#hist-seg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.hist.f = b.dataset.f; S.hist.limit = 80; renderHist(); });
     let qTimer = null;
@@ -1350,7 +1386,12 @@
     // cambio de día con la app abierta
     document.addEventListener('visibilitychange', () => { if (!document.hidden) renderAll(); });
     let lastDay = todayStr();
-    setInterval(() => { const d = todayStr(); if (d !== lastDay) { lastDay = d; if (!S.sheet) renderAll(); } }, 60000);
+    setInterval(() => {
+      const d = todayStr();
+      if (d === lastDay) return;
+      if (S.month === monthOf(lastDay)) S.month = monthOf(d);
+      lastDay = d; renderAll();
+    }, 60000);
   }
 
   // ---------------------------------------------------------------- arranque

@@ -40,6 +40,11 @@
     return {
       path,
       doc: id => docRef(path + '/' + (id || Math.random().toString(36).slice(2))),
+      get: async () => {
+        const o = load();
+        const docs = Object.keys(o).filter(k => k.startsWith(path + '/') && k.split('/').length === path.split('/').length + 1).map(k => snapDoc(k.split('/').pop(), o[k]));
+        return { docs, size: docs.length, empty: !docs.length, docChanges: () => [], metadata: { fromCache: false, hasPendingWrites: false } };
+      },
       onSnapshot(next) {
         const fn = () => {
           const o = load();

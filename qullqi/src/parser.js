@@ -217,6 +217,7 @@
       // número justo después de un concepto ("pan 8", "taxi 10 hasta...") = precio
       const prevContent = prev && prev.kind === 'word' && isContent(prev.t);
       if (fromWords && value <= 12 && !currency && !prevContent) score -= 1;
+      if (fromWords && value <= 12 && !currency && prevContent && kwWords().has(prev.t)) score += 1;
       // "2 cafés", "3 kilos": número pequeño seguido de un sustantivo = cantidad, no importe
       const nxi = Math.max(end, j), nx = toks[nxi];
       const laterNum = toks.slice(nxi).some(t => t.kind === 'num' || (t.kind === 'word' && t.t in UNITS && UNITS[t.t] > 12));
