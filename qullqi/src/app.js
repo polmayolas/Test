@@ -2,7 +2,7 @@
  * Depende de QullqiParser (parser.js). */
 (function () {
   'use strict';
-  const P = window.BolsilloParser;
+  const P = window.QullqiParser;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -723,7 +723,8 @@
       method: it.method || 'cash', source: it.source || 'atm', date: it.date || todayStr(), note: it.note || '',
       currency: it.currency || 'BOB', origAmount: it.amount, rateUsed: it.rateUsed, estimated: !!(it.flags && it.flags.estimated),
       guessed: !!(it.flags && it.flags.categoryGuessed),
-      open: !!(it.flags && (it.flags.noAmount || it.flags.categoryGuessed || it.flags.estimated))
+      huge: !!(it.flags && it.flags.huge),
+      open: !!(it.flags && (it.flags.noAmount || it.flags.categoryGuessed || it.flags.estimated || it.flags.huge))
     };
   }
   function blankDraft(type) {
@@ -762,6 +763,7 @@
       (d.type === 'adjust' ? '<span aria-hidden="true">' + (d.sign < 0 ? '−' : '+') + '</span>' : '') +
       '<input id="' + aid + '" data-k="amount" data-i="' + i + '" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + esc(d.amount) + '"' +
       (d.err ? ' aria-invalid="true" aria-describedby="amt-err-' + i + '"' : '') + '/></div>';
+    if (d.huge && !d.err) h += '<p class="note warn">Es un importe muy alto. Revísalo antes de guardar.</p>';
     if (d.err) h += '<p class="note err-msg" id="amt-err-' + i + '">Escribe el importe (solo números, por ejemplo 25 o 12,50).</p>';
     if (d.type === 'cash_in' && d.currency !== 'BOB' && d.origAmount) {
       h += '<p class="note' + (d.estimated ? ' warn' : '') + '">' + esc(num(d.origAmount) + ' ' + d.currency) + (d.estimated ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) + ' (tipo de cambio de Ajustes). Revisa lo que te dieron.' : (d.rateUsed ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) : '')) + '</p>';
@@ -870,6 +872,7 @@
     const el = e.target; const k = el.dataset && el.dataset.k; if (!k) return;
     const d = st.items[+el.dataset.i];
     d[k] = el.value;
+    if (k === 'amount') d.huge = false;
     if (k === 'amount' && d.err && parseAmount(el.value)) {
       d.err = false;
       const wrap = el.closest('.amount-in'); if (wrap) wrap.classList.remove('err');

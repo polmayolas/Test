@@ -1,4 +1,4 @@
-// node bolsillo/tests/parser.test.js
+// node qullqi/tests/parser.test.js
 const P = require('../src/parser.js');
 const now = new Date(2026, 10, 21, 12, 0); // sábado 21 nov 2026
 const ctx = { now, me: 'Pol', rates: { USD: 6.96, EUR: 7.5 } };
@@ -84,6 +84,27 @@ check('café para Noah', { amountBs: null, category: 'resto', who: 'noah' });
 // --- palabras clave personalizadas
 check('pagué 300 a María', { category: 'personal' }, { extraCats: [{ id: 'personal', keywords: ['María'] }] });
 check('20 en el gimnasio', { category: 'deporte' }, { extraCats: [{ id: 'deporte', name: 'Deporte', keywords: ['gimnasio'] }] });
+
+// --- segunda ronda (árbitro del intérprete)
+check('pan 8 leche 12 taxi 15', [{ amountBs: 8 }, { amountBs: 12 }, { amountBs: 15, category: 'transporte' }]);
+check('taxi 25, no, 35', { amountBs: 35, category: 'transporte' });
+check('compré 4 empanadas', { amountBs: null });
+check('taxi a las 5 de la tarde 20', { amountBs: 20 });
+check('mesa para 6, cena 300', { amountBs: 300, category: 'resto' });
+check('sacamos entradas para el cine 80', { type: 'expense', category: 'ocio', amountBs: 80 });
+check('mi suegra nos dio 500', { type: 'cash_in', amountBs: 500 });
+check('cambié cien euros a ocho con veinte', { type: 'cash_in', source: 'exchange', amountBs: 820 });
+check('saqué 500 y cambié 100 dólares', [{ type: 'cash_in', source: 'atm', amountBs: 500 }, { type: 'cash_in', source: 'exchange', amountBs: 696 }]);
+check('café 15, taxi 20 y pañales 90 para Noah', [{ who: 'familia' }, { who: 'familia' }, { who: 'noah' }]);
+check('bloqueador para el sol 60', { who: 'familia' });
+check('ayer cena 120 y hoy taxi 20', [{ date: '2026-11-20' }, { date: '2026-11-21' }]);
+check('ayer pan 10 y leche 12', [{ date: '2026-11-20' }, { date: '2026-11-20' }]);
+check('pañales $ 90', { amountBs: 90, currency: 'BOB' });
+check('cambié $100 por 950', { type: 'cash_in', amountBs: 950, currency: 'USD' });
+check('20 bolivianos 50 centavos de pan', { amountBs: 20.5 });
+check('café con leche 14', { category: 'resto' });
+check('megas para el celular 20', { category: 'casa' });
+check('x'.repeat(5000) + ' 20', { amountBs: null });
 
 console.log(`\n${pass} ok, ${fail} fallos`);
 process.exit(fail ? 1 : 0);

@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Qullqi</title>
+<title>Qullqi</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Control de gastos en efectivo por voz">
 <meta name="theme-color" content="#f2f2f7">
@@ -533,7 +533,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-msg"></span><button type="button" id="toast-act" hidden></button></div>
 <script>
-/* Bolsillo — intérprete de gastos dictados en español (sin IA, coste cero).
+/* Qullqi — intérprete de gastos dictados en español (sin IA, coste cero).
  * parseUtterance(text, ctx) -> { items: [...], text }
  * Cada item: { type:'expense'|'cash_in', amount, currency, amountBs, category,
  *   who, method, source, date, note, flags:{...} }
@@ -614,8 +614,11 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     'recibi recibimos cobre cobramos ingrese ingresamos dieron dio total precio vale valio').split(' '));
 
   const AFTER_DEC = new Set(['y', 'en', 'para', 'de', 'del', 'por', 'el', 'la', 'al', 'a', 'con']);
-  const QTY_OK = new Set(['y', 'e', 'en', 'para', 'de', 'del', 'por', 'con', 'el', 'la', 'al', 'a', 'que', 'mas', 'menos', 'hoy', 'ayer', 'o', 'centavos', 'mil', 'medio', 'media']);
+  const QTY_OK = new Set(['y', 'e', 'en', 'para', 'de', 'del', 'por', 'con', 'el', 'la', 'al', 'a', 'que', 'mas', 'menos', 'hoy', 'ayer', 'o', 'centavos', 'mil', 'medio', 'media', 'tambien', 'ademas', 'luego', 'despues', 'no', 'perdon', 'digo', 'cada']);
 
+  const UNIT_NOUNS = new Set('ano anos dia dias mes meses semana semanas persona personas hora horas minuto minutos kilo kilos kg litro litros unidad unidades paquete paquetes vez veces docena metro metros'.split(' '));
+  const STOPW = new Set('y e en de del por un una unos unas el la los las a al que para lo le les me nos te se mi con o es ha mas menos tambien ademas luego despues no si ya hoy ayer anoche cada'.split(' '));
+  const isContent = w => !STOPW.has(w) && !VERBS.has(w) && !(w in UNITS) && !CUR[w] && w !== 'mil' && w.length > 1;
   // Busca candidatos de importe. dropMask: índices de tokens que no pueden ser importe.
   function findAmounts(toks, dropMask) {
     const out = [];
@@ -650,6 +653,9 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         }
         if (k === i) continue;
         value = total + cur; j = k; fromWords = true;
+        // "doce cincuenta", "nueve ochenta" -> 12,50 / 9,80
+        if (!dropMask[k] && value >= 1 && value <= 30 && toks[k] && toks[k].kind === 'word' && isTens(UNITS[toks[k].t] || 0) &&
+            !(toks[k + 1] && (toks[k + 1].t === 'mil' || toks[k + 1].t === 'y'))) { value += UNITS[toks[k].t] / 100; j = k + 1; }
       } else continue;
       if (value === null || !(value > 0)) { i = Math.max(i, j - 1); continue; }
 
@@ -658,11 +664,17 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         value += 0.5; j += 2;
       }
       // moneda después ("25 bs", "25 bs.", "25 de bolivianos")
-      let currency = null, curEnd = j;
-      if (curOf(toks[j])) { currency = curOf(toks[j]); curEnd = j + 1; if (toks[curEnd] && toks[curEnd].t === '.' ) curEnd++; }
+      let currency = null, curEnd = j, symIdx = -1;
+      if (curOf(toks[j])) {
+        currency = curOf(toks[j]); if (toks[j].t === '$') symIdx = j; curEnd = j + 1;
+        if (toks[curEnd] && toks[curEnd].t === '.') curEnd++;
+        // "20 bolivianos 50 centavos"
+        const cn = toks[curEnd], cc = toks[curEnd + 1];
+        if (cn && cn.kind === 'num' && cc && cc.t === 'centavos') { const cv = digitValue(cn.t); if (cv > 0 && cv < 100 && Number.isInteger(value)) { value = value + cv / 100; curEnd += 2; } }
+      }
       // moneda antes ("bs 25", "$20", "usd 20")
       let curStart = i;
-      if (!currency && i > 0 && curOf(toks[i - 1]) && !dropMask[i - 1]) { currency = curOf(toks[i - 1]); curStart = i - 1; }
+      if (!currency && i > 0 && curOf(toks[i - 1]) && !dropMask[i - 1]) { currency = curOf(toks[i - 1]); curStart = i - 1; if (toks[i - 1].t === '$') symIdx = i - 1; }
       // decimales "con 50 (centavos)"
       let end = curEnd;
       if (toks[end] && toks[end].t === 'con' && toks[end + 1]) {
@@ -691,11 +703,16 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       }
       const prev = toks[curStart - 1];
       if (prev && (prev.t === 'de' || prev.t === 'por' || prev.t === 'a')) score += 1;
-      if (fromWords && value <= 12 && !currency) score -= 1;
-      // "2 cafés": número pequeño seguido de un sustantivo = cantidad, no importe
+      // número justo después de un concepto ("pan 8", "taxi 10 hasta...") = precio
+      const prevContent = prev && prev.kind === 'word' && isContent(prev.t);
+      if (fromWords && value <= 12 && !currency && !prevContent) score -= 1;
+      // "2 cafés", "3 kilos": número pequeño seguido de un sustantivo = cantidad, no importe
       const nx = toks[Math.max(end, j)];
-      if (!currency && value <= 12 && Number.isInteger(value) && nx && nx.kind === 'word' && !QTY_OK.has(nx.t)) score -= 2;
-      out.push({ value, currency, fromWords, score, i0: curStart, i1: Math.max(end, j) - 1, numIdx: i });
+      if (!currency && value <= 12 && Number.isInteger(value) && nx && nx.kind === 'word' && !QTY_OK.has(nx.t)) {
+        if (UNIT_NOUNS.has(nx.t) || (!prevContent && value >= 2 && /s$/.test(nx.t))) score = Math.min(score - 2, -1);
+        else if (!prevContent) score -= 2;
+      }
+      out.push({ value, currency, fromWords, score, i0: curStart, i1: Math.max(end, j) - 1, numIdx: i, symIdx });
       i = Math.max(end, j) - 1;
     }
     return out;
@@ -704,15 +721,15 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   // ---------- diccionarios ----------
   // peso 3 = lugar / señal fuerte; 1 = artículo
   const CATS = [
-    { id: 'comida', kw: { 3: 'supermercado super súper mercado feria tienda almacen almacén despensa verduleria verdulería carniceria carnicería panaderia panadería fruteria frutería minimarket abarrotes compra del mes compras de comida comida para casa ketal hipermaxi fidalga', 1: 'comida verduras verdura fruta frutas pan leche huevos huevo carne pollo queso arroz aceite fideos azucar azúcar harina yogur cereal papas papa tomates tomate cebolla platano plátano manzanas palta paltas mantequilla jamon jamón agua botellon botellón garrafon garrafón cafe molido galletas snacks lentejas frijoles pescado verdurita abarrote' } },
-    { id: 'resto', kw: { 3: 'restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería', 1: 'cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
-    { id: 'transporte', kw: { 3: 'taxi taxis trufi micro bus buses colectivo flota mototaxi uber gasolina combustible diesel diésel peaje transfer traslado pasaje pasajes parqueo transporte surtidor nafta', 1: 'moto viaje a santa cruz a santa cruz de santa cruz aeropuerto viru viru' } },
-    { id: 'personal', kw: { 3: 'limpieza señora de la limpieza senora de la limpieza limpiadora empleada empleada domestica nana niñera ninera cuidadora canguro jardinero jardinera chica que cuida cuida a noah cuidar a noah cuidado de noah sueldo planchado lavado de ropa lavandera', 1: 'ayuda' } },
-    { id: 'casa', kw: { 4: 'productos de limpieza articulos de limpieza', 3: 'alquiler renta luz electricidad agua potable factura del agua gas garrafa internet wifi telefono teléfono recarga credito para el celular crédito para el celular ferreteria ferretería reparacion reparación arreglo plomero electricista cerrajero muebles mueble lavanderia lavandería tigo entel viva', 1: 'casa hogar bombilla foco detergente lavandina escoba papel higienico papel higiénico' } },
-    { id: 'salud', kw: { 3: 'farmacia medico médico doctor doctora medicina medicinas medicamento medicamentos dentista hospital clinica clínica analisis análisis laboratorio consulta pediatra seguro medico seguro médico vacuna vacunas psicologo psicólogo fisioterapia', 1: 'pastillas ibuprofeno paracetamol vitaminas' } },
-    { id: 'ocio', kw: { 3: 'ocio excursion excursión tour cine fiesta piscina museo paseo cabalgata entrada entradas concierto amboro amboró el fuerte cuevas pajcha la pajcha vinedo viñedo bodega yoga clase de clases de actividad hotel hostal cabaña cabana alojamiento vacaciones', 1: 'juego juegos libro libros regalo' } },
+    { id: 'comida', kw: { 3: 'supermercado super súper mercado feria tienda almacen almacén despensa verduleria verdulería carniceria carnicería panaderia panadería fruteria frutería minimarket abarrotes compra del mes compras de comida comida para casa ketal hipermaxi fidalga', 1: 'kilo kilos naranja naranjas mandarina mandarinas yuca choclo botellon de agua agua mineral comida verduras verdura fruta frutas pan leche huevos huevo carne pollo queso arroz aceite fideos azucar azúcar harina yogur cereal papas papa tomates tomate cebolla platano plátano manzanas palta paltas mantequilla jamon jamón botellon botellón garrafon garrafón cafe molido galletas snacks lentejas frijoles pescado verdurita abarrote' } },
+    { id: 'resto', kw: { 4: 'cafe con leche café con leche', 3: 'restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería pension pensión comedor', 1: 'api sonso zonzo tucumana tucumanas silpancho majadito saice sopa anticucho anticuchos broaster pollo frito mocochinchi chicha refresco masaco cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
+    { id: 'transporte', kw: { 3: 'taxi taxis trufi micro bus buses colectivo flota mototaxi uber gasolina combustible diesel diésel peaje transfer traslado pasaje pasajes parqueo transporte surtidor nafta taxista mecanico mecánico taller llanta llantas gomeria gomería surubi vagoneta', 4: 'cambio de aceite aceite del auto', 1: 'auto coche camioneta moto viaje a santa cruz a santa cruz de santa cruz aeropuerto viru viru' } },
+    { id: 'personal', kw: { 3: 'limpieza señora de la limpieza senora de la limpieza limpiadora empleada empleada domestica nana niñera ninera cuidadora canguro jardinero jardinera chica que cuida cuida a noah cuidar a noah cuidado de noah sueldo planchado lavado de ropa lavandera que limpia nos limpia', 1: 'ayuda' } },
+    { id: 'casa', kw: { 4: 'productos de limpieza articulos de limpieza', 3: 'alquiler renta luz electricidad agua potable factura del agua gas garrafa internet wifi telefono teléfono agua cre cotas cooperativa de agua saguapac megas recarga credito para el celular crédito para el celular ferreteria ferretería reparacion reparación arreglo plomero electricista cerrajero muebles mueble lavanderia lavandería tigo entel viva', 1: 'casa hogar bombilla foco detergente lavandina escoba papel higienico papel higiénico' } },
+    { id: 'salud', kw: { 3: 'farmacia medico médico doctor doctora medicina medicinas medicamento medicamentos dentista hospital clinica clínica analisis análisis laboratorio consulta pediatra medica médica posta centro de salud seguro medico seguro médico vacuna vacunas psicologo psicólogo fisioterapia', 1: 'jarabe antibiotico antibiótico curitas termometro termómetro pastillas ibuprofeno paracetamol vitaminas' } },
+    { id: 'ocio', kw: { 3: 'ocio excursion excursión tour cine fiesta piscina museo paseo cabalgata entrada entradas concierto amboro amboró el fuerte cuevas pajcha la pajcha vinedo viñedo bodega yoga clase de clases de actividad hotel hostal cabaña cabana alojamiento vacaciones', 1: 'juego juegos libro libros' } },
     { id: 'noah', kw: { 3: 'pañales panales toallitas guarderia guardería juguete juguetes kinder colegio escuela', 1: 'biberon biberón chupete papilla leche de formula leche de fórmula ropa de noah' } },
-    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador celular', 1: 'camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
+    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador regalo regalos', 1: 'celular camisa camisas polera poleras chamarra sandalias chinelas bloqueador protector solar camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
     { id: 'otros', kw: { 3: 'comision comisión impuesto multa tramite trámite donacion donación', 1: '' } }
   ];
 
@@ -725,7 +742,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     'viru viru', 'senora de la limpieza', 'empleada domestica', 'chica que cuida', 'cuida a noah', 'cuidar a noah',
     'cuidado de noah', 'lavado de ropa', 'productos de limpieza', 'articulos de limpieza', 'agua potable',
     'factura del agua', 'credito para el celular', 'papel higienico', 'seguro medico', 'el fuerte', 'la pajcha',
-    'clase de', 'clases de', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
+    'clase de', 'clases de', 'cafe con leche', 'cambio de aceite', 'aceite del auto', 'botellon de agua', 'agua mineral', 'pollo frito', 'cooperativa de agua', 'centro de salud', 'que limpia', 'nos limpia', 'protector solar', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
   ];
 
   function buildIndex(extra) {
@@ -780,10 +797,12 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   // ---------- quién ----------
   function detectWho(norm, me) {
     const has = re => re.test(norm);
-    const noah = has(/\b(noah|noa|noe|el nene|el bebe|el peque|el nino|nuestro hijo|mi hijo)\b/);
+    const noah = has(/\b(noah|noa|noe|(?:el|del|al) (?:nene|bebe|peque|nino)|nuestro hijo|mi hijo)\b/);
     const fam = has(/\b(toda la familia|la familia|familia|familiar|todos|los tres)\b/);
     const pareja = has(/\b(los dos|nosotros dos|ambos|la pareja|pareja)\b/);
-    let sol = has(/\bsol\b/);
+    // "sol" es Sol salvo "el/del/al sol" (bloqueador para el sol)
+    let sol = false;
+    { const re = /(^|[^a-z])(el |del |al )?sol\b/g; let m; while ((m = re.exec(norm))) { if (!m[2]) { sol = true; break; } } }
     let pol = has(/\b(pol|paul|pool)\b/);
     const forMe = has(/\b(para mi|para mi mismo|para mi misma|mio|mia)\b/);
     const forYou = has(/\b(para ti|para vos)\b/);
@@ -800,7 +819,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
   // ---------- fecha ----------
   const DAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-  const DATE_RE = /\b(hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) dias?)\b/g;
+  const DATE_RE = /\b(hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) (?:dias?|semanas?))\b/g;
   function detectDate(norm, now) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let m;
@@ -814,6 +833,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       else if (s.startsWith('hace')) {
         const n = s.split(' ')[1];
         off = /\d/.test(n) ? parseInt(n, 10) : (UNITS[n] || 1);
+        if (/semana/.test(s)) off *= 7;
       } else {
         const dn = DAYS.findIndex(x => s.includes(x));
         if (dn >= 0) { off = (d.getDay() - dn + 7) % 7; if (s.includes('pasado') && off === 0) off = 7; }
@@ -825,22 +845,34 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   }
 
   // ---------- tipo ----------
-  const CASHIN_RE = /\b(cajero|atm|saque|sacamos|sacado|sacar|saco|retire|retiramos|retirado|retirar|recibi|recibimos|cobre|cobramos|me pagaron|nos pagaron|me devolvieron|nos devolvieron|me dieron|nos dieron|casa de cambio|ingreso|ingrese|ingresamos)\b/;
-  const EXCHANGE_RE = /\b(cambie|cambiamos|cambiado|cambiar|cambio|casa de cambio)\b/;
+  // Verbos de entrada que sólo cuentan si su objeto es dinero ("saqué 500", "saqué plata"),
+  // no "sacamos entradas", "retiré el pedido", "recibí la factura", "nos dieron la cuenta".
+  const NUMW = '(?:\\d|un |una |mil|cien|ciento|doscient|trescient|cuatrocient|quinient|seiscient|setecient|ochocient|novecient|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci|veint|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)';
+  const MONEY_OBJ = '(?:(?:de |del |el |la |los |las |en |un |una |otros? |mas |ya )*(?:' + NUMW + '|plata|dinero|efectivo|bs|bolivianos|pesos|bob|cash|\\$|\\d))';
+  const ATM_HARD = /\b(cajero|atm)\b/;
+  const ATM_VERB_RE = new RegExp('\\b(?:saque|sacamos|sacado|sacar|saco|retire|retiramos|retirado|retirar|retiro) ' + MONEY_OBJ);
+  const ATM_BANK_RE = /\b(?:saque|sacamos|retire|retiramos)\b.*\bdel banco\b/;
+  const OTHER_OBJ_RE = new RegExp('\\b(?:recibi|recibimos|me dieron|nos dieron|me dio|nos dio|me pasaron|nos pasaron|me prestaron|nos prestaron|ingrese|ingresamos) ' + MONEY_OBJ);
+  const OTHER_ANY_RE = /\b(cobre|cobramos|me pagaron|nos pagaron|me devolvieron|nos devolvieron|me devolvio|nos devolvio|me regalaron|nos regalaron|devolucion|reembolso|reembolsaron|vendi|vendimos|casa de cambio)\b/;
+  const EXCHANGE_RE = /\b(cambie|cambiamos|cambiado|cambiar|cambio|cambiaron|vendi|vendimos|casa de cambio)\b/;
   const FOREIGN_RE = /\b(dolares|dolar|usd|euros|euro|eur|verdes)\b|[$€]/;
   const NOT_CASHIN_RE = /\b(pague|pagamos|gaste|gastamos|compre|compramos|comision|propina)\b/;
+  // "cambié 700 bolivianos a dólares": salen bolivianos -> gasto
+  const BUY_FOREIGN_RE = /\b(?:bs|bolivianos|pesos)\b.*\b(?:a|por|en)\s+(?:dolares|euros)\b|\bcompr\w* (?:\d\S* )?(?:dolares|euros)\b/;
 
   function detectType(norm) {
-    const exch = EXCHANGE_RE.test(norm) && (FOREIGN_RE.test(norm) || /casa de cambio/.test(norm));
-    if (exch) return { type: 'cash_in', source: 'exchange' };
-    if (CASHIN_RE.test(norm) && !NOT_CASHIN_RE.test(norm)) {
-      const atm = /\b(cajero|atm|saque|sacamos|sacado|sacar|saco|retire|retiramos|retirado|retirar)\b/.test(norm);
-      return { type: 'cash_in', source: atm ? 'atm' : 'other' };
+    const foreign = FOREIGN_RE.test(norm);
+    if (EXCHANGE_RE.test(norm) && (foreign || /casa de cambio/.test(norm))) {
+      if (BUY_FOREIGN_RE.test(norm)) return { type: 'expense', source: null };
+      return { type: 'cash_in', source: 'exchange' };
     }
+    if (NOT_CASHIN_RE.test(norm)) return { type: 'expense', source: null };
+    if (ATM_HARD.test(norm) || ATM_VERB_RE.test(norm) || ATM_BANK_RE.test(norm)) return { type: 'cash_in', source: 'atm' };
+    if (OTHER_OBJ_RE.test(norm) || OTHER_ANY_RE.test(norm)) return { type: 'cash_in', source: 'other' };
     return { type: 'expense', source: null };
   }
 
-  const METHOD_RE = /\b(?:(?:con|por|en|via|mediante|pague con|pagamos con) )?(qr|tarjeta|transferencia|debito|credito|tigo money)\b/;
+  const METHOD_RE = /\b(?:(?:con|por|en|via|mediante|pague con|pagamos con) )?(qr|q r|cu ?erre|codigo qr|tarjeta|transferencia|tigo money|(?:con|por|en) (?:debito|credito))\b/;
 
   // ---------- descripción ----------
   const FILLER = [
@@ -890,7 +922,8 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     const me = ctx.me || null;
     const rates = Object.assign({ USD: 6.96, EUR: 7.5 }, ctx.rates || {});
     const extra = ctx.extraCats || [];
-    const orig = String(text || '').replace(/\s+/g, ' ').trim();
+    // límite de longitud: un dictado real nunca pasa de unas frases; evita bloqueos con textos enormes
+    const orig = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 600);
     if (!orig) return { items: [], text: '' };
     const norm = strip(orig);
     const toks = tokenize(norm);
@@ -902,20 +935,64 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     while ((m = dateRe.exec(norm))) {
       toks.forEach((t, i) => { if (t.start >= m.index && t.end <= m.index + m[0].length) dropMask[i] = true; });
     }
-    // "cada uno", "x2" etc. no se tratan
-    const amounts = findAmounts(toks, dropMask);
+    const NT = '(\\d{1,2}(?:[:.]\\d{2})?|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)';
+    const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+    const NOT_AMOUNT = [
+      new RegExp('\\b(?:a|de|desde|hasta|para) las? ' + NT + '(?: y (?:media|cuarto|\\d+))?\\b', 'g'),
+      new RegExp('\\b' + NT + ' (?:de la (?:manana|tarde|noche)|en punto|horas?|hrs?|minutos?|mins?)\\b', 'g'),
+      /\b(?:calle|avenida|av|km|kilometro|numero|nro|habitacion|talla|piso|linea|puesto|mesa para) \d+\b/g,
+      new RegExp('\\bde ' + NT + ' a ' + NT + '(?=\\s+(?:\\d|horas|hrs))', 'g'),
+      new RegExp('\\b\\d{1,2} de (?:' + MONTHS.join('|') + ')\\b', 'g')
+    ];
+    // horas, calles, km, fechas: sus números no son importes
+    for (const re of NOT_AMOUNT) {
+      let mm; re.lastIndex = 0;
+      while ((mm = re.exec(norm))) {
+        const a = mm.index, b = a + mm[0].length;
+        toks.forEach((t, i) => { if (t.kind === 'num' || t.kind === 'word') { if (t.start >= a && t.end <= b && (t.kind === 'num' || t.t in UNITS)) dropMask[i] = true; } });
+      }
+    }
+    let amounts = findAmounts(toks, dropMask);
+    // (d) correcciones habladas: "25, no, 35" / "40, digo 45" -> vale el último
+    const CORR_KEY = new Set(['no', 'perdon', 'digo', 'dicho', 'decir', 'sea', 'corrijo', 'error', 'rectifico']);
+    const CORR_ALL = new Set([...CORR_KEY, 'mejor', 'quiero', 'o', 'es', 'son', 'eran', 'fueron', 'mas', 'bien', 'perdona', 'uy', 'ay', 'eh', 'este', 'que', 'en', 'realidad']);
+    const corrSpans = [];
+    amounts = amounts.filter((a, k) => {
+      const b = amounts[k + 1]; if (!b) return true;
+      const between = toks.slice(a.i1 + 1, b.i0);
+      if (between.length && between.every(t => t.kind === 'punct' || CORR_ALL.has(t.t)) && between.some(t => CORR_KEY.has(t.t))) {
+        corrSpans.push([toks[a.i0].start, toks[b.i0 - 1].end]); return false;
+      }
+      return true;
+    });
 
     const globalType = detectType(norm);
     const globalDate = detectDate(norm, now);
-    const globalWho = detectWho(norm, me);
+    // "$" suelto: en Bolivia el dólar se escribe "$us"; el dictado puede convertir "pesos" en "$".
+    // Fuera de un cambio de divisa se trata como bolivianos (la hoja de revisión lo muestra).
+    amounts.forEach(a => {
+      if (a.symIdx < 0) return;
+      const nx = toks[a.symIdx + 1];
+      a.currency = (nx && (nx.t === 'us' || nx.t === 'usd')) || globalType.source === 'exchange' ? 'USD' : 'BOB';
+    });
 
     // cláusulas
     let clauses = [];
-    const noSplit = globalType.source === 'exchange';
+    const noSplit = false;
+    const isExch = globalType.source === 'exchange';
+    const EXP_VERB = /^(gaste|gastamos|pague|pagamos|compre|compramos)$/;
+    const ATM_VERB_ONLY = /^(saque|sacamos|retire|retiramos|cajero)$/;
     let cur = { a: 0, b: 0 };
     for (let i = 0; i < toks.length; i++) {
       const t = toks[i];
-      const isSep = !noSplit && ((t.kind === 'punct' && /[,;.!?]/.test(t.t)) || (t.kind === 'word' && SPLIT_WORDS.has(t.t)));
+      let isSep = (t.kind === 'punct' && /[,;.!?]/.test(t.t)) || (t.kind === 'word' && SPLIT_WORDS.has(t.t));
+      if (isSep && isExch) {
+        // en un cambio solo se corta ante otra operación: un gasto, un cajero u otro cambio
+        const seg = toks.slice(cur.a, i).map(x => x.t);
+        const hadExch = seg.some(w => /^(cambie|cambiamos|cambiaron|cambiado|cambiar)$/.test(w));
+        isSep = [1, 2, 3].some(d => toks[i + d] && (EXP_VERB.test(toks[i + d].t) || ATM_VERB_ONLY.test(toks[i + d].t) ||
+          (!hadExch && /^(cambie|cambiamos)$/.test(toks[i + d].t))));
+      }
       // no cortar dentro de un importe
       const inAmount = amounts.some(a => i > a.i0 && i <= a.i1);
       if (isSep && !inAmount) { cur.b = i; clauses.push(cur); cur = { a: i + 1, b: i + 1 }; }
@@ -925,7 +1002,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
     const qualified = a => a.score >= 1;
     const anyQualified = amounts.some(qualified);
-    const amountsIn = c => amounts.filter(a => a.i0 >= c.a && a.i1 < c.b && (anyQualified ? qualified(a) : true));
+    const amountsIn = c => amounts.filter(a => a.i0 >= c.a && a.i1 < c.b && (anyQualified ? qualified(a) : a.score >= 0));
 
     // fusiona cláusulas sin importe con la anterior (o la siguiente)
     const merged = [];
@@ -944,6 +1021,25 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     if (!merged.length) merged.push({ a: 0, b: toks.length });
     else if (pending) merged[merged.length - 1].b = pending.b;
 
+    if (!isExch) {
+      const out = [];
+      for (const c of merged) {
+        const q = amountsIn(c).sort((x, y) => x.i0 - y.i0);
+        const conceptFirst = q.length && toks.slice(c.a, q[0].i0).some(t => t.kind === 'word');
+        let start = c.a;
+        for (let k = 0; k + 1 < q.length; k++) {
+          const x = q[k], y = q[k + 1];
+          const bt = toks.slice(x.i1 + 1, y.i0);
+          if (!bt.length) continue;
+          const btNorm = norm.slice(bt[0].start, bt[bt.length - 1].end);
+          if (!categorize(btNorm, extra)) continue;
+          const cut = conceptFirst ? x.i1 + 1 : y.i0;
+          if (cut > start) { out.push({ a: start, b: cut }); start = cut; }
+        }
+        out.push({ a: start, b: c.b });
+      }
+      merged.length = 0; out.forEach(c => merged.push(c));
+    }
     const spanOf = c => {
       const s = toks[c.a] ? toks[c.a].start : 0;
       const e = toks[c.b - 1] ? toks[c.b - 1].end : norm.length;
@@ -951,14 +1047,23 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     };
 
     const whoMentions = merged.map(c => { const [s, e] = spanOf(c); return detectWho(norm.slice(s, e), me); });
-    const distinctWho = new Set(whoMentions.filter(Boolean));
+    const looseWho = clauses.filter(c => !amountsIn(c).length).map(c => { const [s, e] = spanOf(c); return detectWho(norm.slice(s, e), me); });
+    const distinctWho = new Set(looseWho.filter(Boolean));
 
-    const items = merged.map((c, ci) => {
+    // fechas: si se nombra una sola, vale para todo; si hay varias, cada cláusula la suya (o la anterior)
+    const clauseDates = merged.map(c => { const [s, e] = spanOf(c); return detectDate(norm.slice(s, e), now); });
+    const distinctDates = new Set(clauseDates.filter(Boolean).map(ymd));
+    let carryDate = null;
+    const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const items = merged.slice(0, 20).map((c, ci) => {
       const [s, e] = spanOf(c);
       const cNorm = norm.slice(s, e);
       const cOrig = orig.slice(s, e);
-      const cAm = amountsIn(c);
-      const tinfo = noSplit ? globalType : detectType(cNorm);
+      const cAm0 = amountsIn(c);
+      const own = detectType(cNorm);
+      const tinfo = !isExch || own.type === 'cash_in' || NOT_CASHIN_RE.test(cNorm) ? own : globalType;
+      const cAm = tinfo.source === 'exchange' ? amounts.filter(a => a.i0 >= c.a && a.i1 < c.b) : cAm0;
       let pick = null;
       let amountBs = null, currency = 'BOB', amount = null, estimated = false, rateUsed = null;
 
@@ -966,7 +1071,16 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         const foreign = cAm.filter(a => a.currency === 'USD' || a.currency === 'EUR');
         const bob = cAm.filter(a => a.currency === 'BOB');
         const plain = cAm.filter(a => !a.currency);
-        const f = foreign[0] || null;
+        let f = foreign[0] || null;
+        // "cambiamos dólares, 200 a 9,70": moneda nombrada sin pegar al número
+        if (!f && plain.length) {
+          const fw = /\b(euros?|eur)\b|€/.test(cNorm) ? 'EUR' : 'USD';
+          const big = plain.slice().sort((x, y) => y.value - x.value)[0];
+          if (big.value >= 10) { f = Object.assign({}, big, { currency: fw }); plain.splice(plain.indexOf(big), 1); }
+        }
+        // "a 10 bolivianos" con 100 dólares = tasa, no total
+        const rateBob = f && bob.find(x => x.value <= 30 && x.value < f.value);
+        if (rateBob && !bob.some(x => x.value >= f.value)) { bob.splice(bob.indexOf(rateBob), 1); plain.push(rateBob); }
         if (f) {
           currency = f.currency; amount = f.value;
           const b = bob.find(x => x.value >= f.value) || bob[0];
@@ -987,13 +1101,18 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         pick = sorted[0] || null;
         if (pick) {
           amount = pick.value; currency = pick.currency || 'BOB';
+          const aft = toks[pick.i1 + 1], aft2 = toks[pick.i1 + 2];
+          if (aft && aft.t === 'cada' && aft2 && /^(uno|una)$/.test(aft2.t)) {
+            const q = amounts.find(a => a.i0 >= c.a && a.i1 < pick.i0 && a.score < 1 && Number.isInteger(a.value) && a.value >= 2 && a.value <= 50);
+            if (q) amount = round2(q.value * pick.value);
+          }
           if (currency !== 'BOB') { amountBs = round2(amount * rates[currency]); estimated = true; rateUsed = rates[currency]; }
           else amountBs = amount;
         }
       }
 
       // spans a quitar para la descripción: todos los importes/monedas de la cláusula
-      const drop = amounts.filter(a => a.i0 >= c.a && a.i1 < c.b).map(a => [toks[a.i0].start, toks[a.i1].end]);
+      const drop = amounts.filter(a => a.i0 >= c.a && a.i1 < c.b).map(a => [toks[a.i0].start, toks[a.i1].end]).concat(corrSpans.filter(([a, b]) => a >= s && b <= e));
       const methodM = METHOD_RE.exec(cNorm);
       const method = methodM ? 'qr' : 'cash';
       let who = whoMentions[ci] || (distinctWho.size === 1 ? [...distinctWho][0] : null);
@@ -1011,7 +1130,10 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         if (tinfo.source === 'other' && !note) note = 'Entrada de efectivo';
         if (/^(dinero|plata|efectivo)( del)?$/i.test(note)) note = tinfo.source === 'atm' ? 'Cajero' : 'Entrada de efectivo';
       }
-      const date = globalDate || new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      let date;
+      if (distinctDates.size <= 1) date = globalDate || today0;
+      else { if (clauseDates[ci]) carryDate = clauseDates[ci]; date = carryDate || today0; }
+      if (amountBs !== null && amountBs > 1e8) amountBs = null;
       return {
         type: tinfo.type,
         source: tinfo.type === 'cash_in' ? tinfo.source : null,
@@ -1021,7 +1143,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
         method: tinfo.type === 'expense' ? method : 'cash',
         date: ymd(date),
         note,
-        flags: { noAmount: amountBs === null, estimated, categoryGuessed: guessed }
+        flags: { noAmount: amountBs === null, estimated, categoryGuessed: guessed, huge: amountBs !== null && amountBs > 50000 }
       };
     });
     return { items, text: orig };
@@ -1035,7 +1157,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
 
   const api = { parseUtterance, strip, digitValue, categorize, detectWho, ymd, CATEGORY_IDS: CATS.map(c => c.id) };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  root.BolsilloParser = api;
+  root.QullqiParser = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 </script>
 <script>
@@ -1043,7 +1165,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
  * Depende de QullqiParser (parser.js). */
 (function () {
   'use strict';
-  const P = window.BolsilloParser;
+  const P = window.QullqiParser;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
@@ -1764,7 +1886,8 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       method: it.method || 'cash', source: it.source || 'atm', date: it.date || todayStr(), note: it.note || '',
       currency: it.currency || 'BOB', origAmount: it.amount, rateUsed: it.rateUsed, estimated: !!(it.flags && it.flags.estimated),
       guessed: !!(it.flags && it.flags.categoryGuessed),
-      open: !!(it.flags && (it.flags.noAmount || it.flags.categoryGuessed || it.flags.estimated))
+      huge: !!(it.flags && it.flags.huge),
+      open: !!(it.flags && (it.flags.noAmount || it.flags.categoryGuessed || it.flags.estimated || it.flags.huge))
     };
   }
   function blankDraft(type) {
@@ -1803,6 +1926,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
       (d.type === 'adjust' ? '<span aria-hidden="true">' + (d.sign < 0 ? '−' : '+') + '</span>' : '') +
       '<input id="' + aid + '" data-k="amount" data-i="' + i + '" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + esc(d.amount) + '"' +
       (d.err ? ' aria-invalid="true" aria-describedby="amt-err-' + i + '"' : '') + '/></div>';
+    if (d.huge && !d.err) h += '<p class="note warn">Es un importe muy alto. Revísalo antes de guardar.</p>';
     if (d.err) h += '<p class="note err-msg" id="amt-err-' + i + '">Escribe el importe (solo números, por ejemplo 25 o 12,50).</p>';
     if (d.type === 'cash_in' && d.currency !== 'BOB' && d.origAmount) {
       h += '<p class="note' + (d.estimated ? ' warn' : '') + '">' + esc(num(d.origAmount) + ' ' + d.currency) + (d.estimated ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) + ' (tipo de cambio de Ajustes). Revisa lo que te dieron.' : (d.rateUsed ? ' × ' + esc(String(d.rateUsed).replace('.', ',')) : '')) + '</p>';
@@ -1911,6 +2035,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
     const el = e.target; const k = el.dataset && el.dataset.k; if (!k) return;
     const d = st.items[+el.dataset.i];
     d[k] = el.value;
+    if (k === 'amount') d.huge = false;
     if (k === 'amount' && d.err && parseAmount(el.value)) {
       d.err = false;
       const wrap = el.closest('.amount-in'); if (wrap) wrap.classList.remove('err');
@@ -2344,4 +2469,3 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
 </script>
-</body></html>

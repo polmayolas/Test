@@ -1,7 +1,7 @@
 {
-  "name": "bolsillo",
+  "name": "qullqi",
   "private": true,
-  "description": "Control de gastos en efectivo por voz (Samaipata)",
+  "description": "Qullqi: control de gastos en efectivo por voz",
   "scripts": {
     "build": "node build.js",
     "test": "node tests/parser.test.js && node build.js && node tests/e2e.js"
