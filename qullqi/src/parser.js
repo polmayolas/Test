@@ -43,7 +43,8 @@
     } else if (hasDot || hasComma) {
       const sep = hasDot ? '.' : ',';
       const parts = s.split(sep);
-      if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) s = parts.join('');
+      // "1.500" = mil quinientos; "0,500" = medio
+      if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && !/^0+$/.test(parts[0]))) s = parts.join('');
       else s = parts.join('.');
     }
     const v = parseFloat(s);

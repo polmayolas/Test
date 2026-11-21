@@ -118,7 +118,7 @@
     const t = raw.replace(/\s+/g, '');
     if (!t) return null;
     const v = P.digitValue(t);
-    return v && v > 0 ? r2(v) : null;
+    return v && v > 0 && v < 1e8 ? r2(v) : null;
   }
   function pct(v, total) { const x = v / total * 100; return x > 0 && x < 1 ? '<1 %' : Math.round(x) + ' %'; }
   function withTimeout(pr, ms) {
@@ -178,7 +178,7 @@
     const out = [];
     S.txns.forEach((d, id) => {
       if (!d || typeof d !== 'object' || typeof d.amount !== 'number' || !isFinite(d.amount) || Math.abs(d.amount) > 1e9) return;
-      if (typeof d.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d.date) || isNaN(parseYmd(d.date).getTime())) return;
+      if (typeof d.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d.date) || ymd(parseYmd(d.date)) !== d.date) return;
       if (d.type !== 'expense' && d.type !== 'cash_in' && d.type !== 'adjust') return;
       const t = Object.assign({ id }, d);
       if (t.type !== 'adjust') t.amount = Math.abs(t.amount);
@@ -188,6 +188,8 @@
     return out
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0)));
   }
+  // ¿Los movimientos que vemos están confirmados por el servidor? (sin ellos no se puede cuadrar el efectivo)
+  function dataReady() { return S.mode === 'local' || (S.mode === 'shared' && S.confirmed && !S.stale); }
   function balance(list) {
     let b = 0;
     for (const t of list) {
@@ -234,8 +236,10 @@
         if (!snap.metadata.fromCache) { S.confirmed = true; S.stale = false; clearTimeout(timer); }
         renderAll();
       }, err => {
-        S.loaded = true; S.stale = true; clearTimeout(timer); renderAll();
-        if (err && (err.code === 'unavailable' || err.code === 'resource_exhausted')) setTimeout(subTxns, 5000);
+        S.loaded = true; S.stale = true; S.confirmed = false; clearTimeout(timer); renderAll();
+        const code = err && err.code;
+        if (code === 'unavailable') setTimeout(subTxns, 5000);
+        else if (code === 'resource_exhausted' && (S.txnRetries = (S.txnRetries || 0) + 1) <= 3) setTimeout(subTxns, 30000 * S.txnRetries);
       });
       const subConfig = () => db.doc('config/main').onSnapshot(d => {
         S.config = d.exists ? (d.data() || {}) : {};
@@ -245,7 +249,11 @@
           S.me = S.config.members[S.uid]; ls.set(meKey(), S.me);
         }
         renderAll();
-      }, err => { if (err && (err.code === 'unavailable' || err.code === 'resource_exhausted')) setTimeout(subConfig, 5000); });
+      }, err => {
+        const code = err && err.code;
+        if (code === 'unavailable') setTimeout(subConfig, 5000);
+        else if (code === 'resource_exhausted' && (S.cfgRetries = (S.cfgRetries || 0) + 1) <= 3) setTimeout(subConfig, 30000 * S.cfgRetries);
+      });
       subTxns(); subConfig();
       renderAll();
     },
@@ -285,7 +293,13 @@
           }
           const snap = await withTimeout(ref.get());
           if (snap.exists) await this.retry(() => ref.update(patch));
-          else await this.retry(() => ref.set(patch));
+          else {
+            await this.retry(() => ref.set(patch));
+            // si otro móvil creó el documento a la vez, su set() pudo pisar el nuestro: se vuelve a aplicar
+            await new Promise(r => setTimeout(r, 500));
+            const after = await withTimeout(ref.get());
+            if (!after.exists || !containsPatch(after.data(), patch)) await this.retry(() => ref.update(patch));
+          }
         }
         S.configExists = true;
       };
@@ -309,14 +323,22 @@
     if (code === 'invalid_argument' || code === 'not_granted') { S.canWrite = false; renderBanners(); }
     return e || { code: 'unavailable' };
   }
-  function errMsg(e) {
+  function errMsg(e, retryLabel) {
     const c = e && e.code;
     if (c === 'invalid_argument' || c === 'not_granted') return 'No tienes permiso para guardar. Pide acceso de Editor.';
     if (c === 'quota_exceeded') return 'El almacenamiento está lleno. Borra movimientos antiguos.';
     if (c === 'revoked') return 'Se ha retirado el acceso a los datos.';
     if (c === 'local_storage') return 'Este navegador no deja guardar datos. No se ha guardado nada.';
-    if (c === 'timeout') return 'Sin conexión: no se pudo confirmar. Vuelve a tocar Guardar cuando tengas señal.';
+    if (c === 'timeout') return 'Sin conexión: no se pudo confirmar. ' + (retryLabel || 'Vuelve a tocar Guardar') + ' cuando tengas señal.';
     return 'No se pudo guardar. Revisa la conexión e inténtalo de nuevo.';
+  }
+  function containsPatch(obj, patch) {
+    if (!obj || typeof obj !== 'object') return false;
+    return Object.keys(patch).every(k => {
+      const v = patch[k];
+      if (v && typeof v === 'object' && !Array.isArray(v)) return containsPatch(obj[k], v);
+      return JSON.stringify(obj[k]) === JSON.stringify(v);
+    });
   }
   function deepMerge(a, b) {
     for (const k of Object.keys(b)) {
@@ -414,7 +436,7 @@
     ct.innerHTML = moneyHTML(bal);
     ct.classList.toggle('neg', bal < 0);
     const startBox = $('#start-box');
-    const showStart = !list.length && S.canWrite && ls.get('qullqi.started') !== '1';
+    const showStart = !list.length && S.canWrite && dataReady() && ls.get('qullqi.started') !== '1';
     if (showStart && !startBox.firstChild) {
       startBox.innerHTML = '<p class="start-q"><label for="start-in">¿Cuánto efectivo tenéis ahora?</label></p><form class="start" id="start-form" autocomplete="off">' +
         '<div class="amt-box"><span>Bs</span><input id="start-in" type="text" inputmode="decimal" placeholder="0"/></div>' +
@@ -802,7 +824,7 @@
     const n = st.items.length;
     const total = st.items.reduce((s, d) => s + (d.type === 'expense' ? (parseAmount(d.amount) || 0) : 0), 0);
     $('#sheet-title').textContent = st.editId ? 'Editar' : n > 1 ? n + ' movimientos' : st.items[0].type === 'cash_in' ? 'Entrada de efectivo' : st.items[0].type === 'adjust' ? 'Ajuste' : 'Nuevo gasto';
-    ok.textContent = 'Guardar'; ok.disabled = !S.canWrite || st.saving; cancel.textContent = 'Cancelar'; cancel.classList.remove('ghost'); cancel.tabIndex = 0;
+    ok.textContent = st.saving ? 'Guardando…' : 'Guardar'; ok.disabled = !S.canWrite || st.saving; cancel.textContent = 'Cancelar'; cancel.disabled = !!st.saving; cancel.classList.remove('ghost'); cancel.tabIndex = 0;
     let h = '';
     if (!S.canWrite) h += '<div class="banner">' + svg('info') + '<span><strong>Solo lectura.</strong> Necesitas acceso de Editor para guardar.</span></div>';
     if (st.text) h += '<div class="quote">' + svg('quote') + '<q class="q-text"></q><button type="button" data-act="edit-text">Corregir</button></div>';
@@ -862,6 +884,7 @@
       if (!st.armed) { st.armed = true; renderSheet(); setTimeout(() => { if (S.sheet === st && st.armed) { st.armed = false; renderSheet(); } }, 4000); return; }
       const id = st.editId, prev = S.txns.get(id);
       closeSheet();
+      if (!prev) { toast('Este movimiento ya no existe.'); return; }
       Store.del(id).then(() => {
         toast('Movimiento eliminado', 'Deshacer', () => Store.put(id, prev).catch(e2 => toast(errMsg(e2))));
         setTimeout(() => { const b2 = $('#toast-act'); if (!b2.hidden) b2.focus({ preventScroll: true }); }, 320);
@@ -908,7 +931,7 @@
       return;
     }
     if (st.editId && !S.txns.has(st.editId)) { closeSheet(); toast('Este movimiento se eliminó en otro móvil.'); return; }
-    st.saving = true; $('#sheet-ok').disabled = true;
+    st.saving = true; renderSheet();
     const now = Date.now();
     // Cada borrador conserva su id: si se reintenta tras un fallo, se reescribe el mismo documento (sin duplicados).
     const writes = st.items.map((d, i) => {
@@ -968,13 +991,14 @@
     const rt = rates();
     const bal = balance(allTxns());
     const ro = !S.canWrite;
+    const waiting = !dataReady();
     let h = '';
     h += '<div class="set-sec"><h4>Este móvil</h4><div class="set-card" style="padding:12px 14px"><div class="seg" role="group" aria-label="Quién usa este móvil">' +
       PEOPLE.map(p => '<button type="button" data-set-me="' + p + '" aria-pressed="' + (S.me === p) + '">Soy ' + p + '</button>').join('') +
       '</div></div><p class="foot">Sirve para entender «para mí» y para saber quién anotó cada gasto.</p></div>';
-    h += '<div class="set-sec"><h4>Efectivo en mano</h4><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>Qullqi calcula ' + esc(money(bal)) + '</small></label>' +
-      '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="Bs"' + (ro || S.adjusting ? ' disabled' : '') + '/>' +
-      '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
+    h += '<div class="set-sec"><h4>Efectivo en mano</h4><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>' + (waiting ? 'Esperando datos…' : 'Qullqi calcula ' + esc(money(bal))) + '</small></label>' +
+      '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="Bs"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '/>' +
+      '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
       '<p class="foot">Cuenta los billetes y escribe lo que tenéis. Se anota un ajuste por la diferencia.</p></div>';
     h += '<div class="set-sec"><h4>Tipo de cambio</h4><div class="set-card">' +
       ['USD', 'EUR'].map(c => '<div class="set-row"><label class="grow" for="rate-' + c + '">1 ' + (c === 'USD' ? 'dólar' : 'euro') + ' =</label><input class="inline" id="rate-' + c + '" data-rate="' + c + '" type="text" inputmode="decimal" value="' + esc(String(rt[c]).replace('.', ',')) + '"' + (ro ? ' disabled' : '') + '/><span>Bs</span></div>').join('') +
@@ -1033,17 +1057,27 @@
   // Ajusta el efectivo a una cantidad: anota la diferencia. Protegido contra dobles toques.
   async function setCashTo(target, note) {
     if (S.adjusting || !S.canWrite) return false;
+    if (!dataReady()) { toast('Esperando a que carguen los datos. Inténtalo en un momento.'); return false; }
     S.adjusting = true;
     try {
-      const diff = r2(target - balance(allTxns()));
-      if (!diff) { toast('El efectivo ya cuadra.'); return true; }
-      // el efectivo inicial usa un id fijo: si los dos móviles lo indican a la vez, queda uno solo
-      const id = note === 'Efectivo inicial' ? 'efectivo-inicial' : newId();
+      const initial = note === 'Efectivo inicial';
+      // el efectivo inicial usa un id fijo (dos móviles a la vez = uno solo) y nunca pisa uno existente
+      if (initial && S.mode === 'shared') {
+        const ex = await withTimeout(Store.db.collection('txns').doc('efectivo-inicial').get());
+        if (ex.exists) { toast('Ya se indicó el efectivo inicial. Si no cuadra, usa Ajustes.'); return true; }
+      }
+      // si un intento anterior no se confirmó, se reutiliza su id para no duplicar el ajuste
+      const pend = S.pendingAdjust && S.pendingAdjust.target === target ? S.pendingAdjust.id : null;
+      const id = initial ? 'efectivo-inicial' : (pend || newId());
+      const diff = r2(target - balance(allTxns().filter(t => t.id !== id)));
+      if (!diff) { toast('El efectivo ya cuadra.'); S.pendingAdjust = null; return true; }
       const doc = { type: 'adjust', amount: diff, date: todayStr(), note: note || 'Ajuste de efectivo', createdAt: Date.now(), updatedAt: Date.now(), by: S.me || null };
+      S.pendingAdjust = { id, target };
       await Store.put(id, doc);
+      S.pendingAdjust = null;
       toast('Efectivo: ' + money(target), 'Deshacer', () => Store.del(id).catch(e2 => toast(errMsg(e2))));
       return true;
-    } catch (err) { toast(errMsg(err)); return false; }
+    } catch (err) { toast(errMsg(err, 'Inténtalo otra vez')); return false; }
     finally { S.adjusting = false; }
   }
   function onSettingsChange(e) {
@@ -1109,7 +1143,8 @@
   function csvText() {
     const q = (v, isNum) => {
       let s = String(v == null ? '' : v);
-      if (!isNum && /^[=+\-@\t\r]/.test(s)) s = "'" + s; // evita fórmulas al abrir en una hoja de cálculo
+      if (isNum) s = s.replace('.', ',');
+      else if (/^\s*[=+\-@\t\r]/.test(s)) s = "'" + s; // evita fórmulas al abrir en una hoja de cálculo
       return /[",\n;\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
     const rows = [['fecha', 'tipo', 'importe_bs', 'categoria', 'para', 'pago', 'concepto', 'anotado_por', 'texto_dictado']];
@@ -1120,7 +1155,8 @@
       t.type === 'expense' ? whoName(t.who) : '', t.type === 'expense' ? (t.method === 'qr' ? 'QR/tarjeta' : 'efectivo') : '',
       t.note || '', t.by || '', t.text || ''
     ]));
-    return rows.map((r, ri) => r.map((v, ci) => q(v, ri > 0 && ci === 2)).join(',')).join('\n');
+    // separador «;» y coma decimal, como espera Excel en español; BOM para que respete las tildes
+    return '\ufeff' + rows.map((r, ri) => r.map((v, ci) => q(v, ri > 0 && ci === 2)).join(';')).join('\r\n');
   }
   function exportCsv() {
     const text = csvText();
@@ -1168,7 +1204,7 @@
         const want = S.wantProcess; S.wantProcess = false;
         if (want && text) { $('#live').innerHTML = ''; processText(text); }
         else if (reason === 'not_granted') { S.dict = null; renderMic(); toast('Dictado desactivado. Usa el micrófono del teclado.'); }
-        else if (reason === 'unavailable') { /* lo gestiona start() */ }
+        else if (reason === 'unavailable' && S.heard) toast('El dictado no está disponible ahora. Usa el micrófono del teclado.');
         else if (reason === 'rate_limited') toast('El micrófono está ocupado. Prueba en unos segundos.');
         else if (reason === 'upstream_error') toast('No se pudo usar el micrófono. Inténtalo otra vez.');
         else if (reason === 'dismissed') toast('Para dictar, permite el micrófono cuando te lo pida.');
@@ -1276,7 +1312,7 @@
       else if (st.kind === 'settings') closeSheet();
       else if (st.kind === 'cat') saveCat();
     });
-    $('#sheet-cancel').addEventListener('click', () => { if (S.sheet && S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else closeSheet(); });
+    $('#sheet-cancel').addEventListener('click', () => { if (S.sheet && S.sheet.saving) return; if (S.sheet && S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else closeSheet(); });
     // Tocar fuera no descarta un gasto a medio revisar (hay que usar Cancelar)
     $('#scrim').addEventListener('click', () => { if (S.sheet && S.sheet.kind !== 'entry') closeSheet(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sheet) { e.preventDefault(); if (S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else closeSheet(); } });
@@ -1291,6 +1327,8 @@
     });
     // cambio de día con la app abierta
     document.addEventListener('visibilitychange', () => { if (!document.hidden) renderAll(); });
+    let lastDay = todayStr();
+    setInterval(() => { const d = todayStr(); if (d !== lastDay) { lastDay = d; if (!S.sheet) renderAll(); } }, 60000);
   }
 
   // ---------------------------------------------------------------- arranque
