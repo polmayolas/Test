@@ -1,0 +1,89 @@
+// node bolsillo/tests/parser.test.js
+const P = require('../src/parser.js');
+const now = new Date(2026, 10, 21, 12, 0); // sábado 21 nov 2026
+const ctx = { now, me: 'Pol', rates: { USD: 6.96, EUR: 7.5 } };
+let fail = 0, pass = 0;
+
+function check(text, exp, c) {
+  const r = P.parseUtterance(text, Object.assign({}, ctx, c || {}));
+  const items = r.items;
+  const exps = Array.isArray(exp) ? exp : [exp];
+  const errs = [];
+  if (items.length !== exps.length) errs.push(`items ${items.length} != ${exps.length}`);
+  exps.forEach((e, i) => {
+    const it = items[i] || {};
+    for (const k of Object.keys(e)) {
+      const v = k === 'noteMatch' ? it.note : it[k];
+      if (k === 'noteMatch') { if (!e[k].test(v || '')) errs.push(`[${i}] note "${v}" !~ ${e[k]}`); }
+      else if (v !== e[k]) errs.push(`[${i}] ${k}=${JSON.stringify(v)} expected ${JSON.stringify(e[k])}`);
+    }
+  });
+  if (errs.length) { fail++; console.log('FAIL', JSON.stringify(text), '\n   ', errs.join('\n    '), '\n    got', JSON.stringify(items)); }
+  else pass++;
+}
+
+// --- básicos
+check('Me acabo de gastar 25 bolivianos en un café y el gasto es para Sol y Pol',
+  { type: 'expense', amountBs: 25, category: 'resto', who: 'pareja', method: 'cash', note: 'Café' });
+check('25 bs café', { amountBs: 25, category: 'resto', who: 'familia' });
+check('Gasté 120 en el supermercado para toda la familia', { amountBs: 120, category: 'comida', who: 'familia', noteMatch: /supermercado/i });
+check('compramos verduras en la feria 85 bolivianos', { amountBs: 85, category: 'comida' });
+check('Taxi a Santa Cruz 350', { amountBs: 350, category: 'transporte', noteMatch: /Taxi a Santa Cruz/ });
+check('pagué 150 a la señora de la limpieza', { amountBs: 150, category: 'personal', noteMatch: /señora de la limpieza/i });
+check('200 bolivianos a la niñera de Noah', { amountBs: 200, category: 'personal' });
+check('productos de limpieza 45 bs', { amountBs: 45, category: 'casa' });
+check('farmacia 38,50 para Noah', { amountBs: 38.5, category: 'salud', who: 'noah' });
+check('pañales 90', { amountBs: 90, category: 'noah', who: 'noah' });
+check('veinticinco bolivianos en un café', { amountBs: 25, category: 'resto', note: 'Café' });
+check('me gasté treinta y cinco en salteñas', { amountBs: 35, category: 'resto' });
+check('ciento cincuenta en la cena del restaurante', { amountBs: 150, category: 'resto' });
+check('mil quinientos de alquiler', { amountBs: 1500, category: 'casa' });
+check('dos mil quinientos bolivianos de alquiler', { amountBs: 2500, category: 'casa' });
+check('alquiler 1.500 bs', { amountBs: 1500, category: 'casa' });
+check('20 con 50 de pan', { amountBs: 20.5, category: 'comida' });
+check('veinte con cincuenta de pan', { amountBs: 20.5, category: 'comida' });
+check('compré dos panes por 10', { amountBs: 10, category: 'comida' });
+check('pagué 50 por 2 cafés', { amountBs: 50, category: 'resto' });
+check('un helado para mí 15 bs', { amountBs: 15, category: 'resto', who: 'pol' });
+check('un helado para mí 15 bs', { who: 'sol' }, { me: 'Sol' });
+check('Bs 30 gasolina', { amountBs: 30, category: 'transporte' });
+check('trufi 10 pesos', { amountBs: 10, category: 'transporte' });
+check('pagamos 60 con QR en el restaurante', { amountBs: 60, method: 'qr', category: 'resto' });
+check('ayer gasté 40 en el mercado', { amountBs: 40, date: '2026-11-20', category: 'comida' });
+check('anteayer 40 de taxi', { amountBs: 40, date: '2026-11-19' });
+check('hace 3 días 40 de taxi', { amountBs: 40, date: '2026-11-18' });
+check('el lunes pagamos 100 de internet', { amountBs: 100, date: '2026-11-16', category: 'casa' });
+check('entrada al museo 20 para Sol', { amountBs: 20, category: 'ocio', who: 'sol' });
+check('excursión a Amboró 400 para los tres', { amountBs: 400, category: 'ocio', who: 'familia' });
+check('algo raro 33', { amountBs: 33, category: 'otros', who: 'familia' });
+
+// --- efectivo
+check('Acabo de sacar 1000 bolivianos del cajero', { type: 'cash_in', source: 'atm', amountBs: 1000, note: 'Cajero' });
+check('saqué dos mil del cajero', { type: 'cash_in', source: 'atm', amountBs: 2000 });
+check('retiré 500', { type: 'cash_in', source: 'atm', amountBs: 500 });
+check('cambié 100 dólares y me dieron 690 bolivianos', { type: 'cash_in', source: 'exchange', amountBs: 690 });
+check('cambié 100 dólares a 9,80', { type: 'cash_in', source: 'exchange', amountBs: 980 });
+check('cambiamos 200 dólares', { type: 'cash_in', source: 'exchange', amountBs: 1392 });
+check('cambié 50 euros por 400 bolivianos', { type: 'cash_in', source: 'exchange', amountBs: 400, currency: 'EUR' });
+
+// --- múltiples
+check('25 en café y 40 en taxi', [{ amountBs: 25, category: 'resto' }, { amountBs: 40, category: 'transporte' }]);
+check('pan 10, leche 12 y taxi 15', [{ amountBs: 10, category: 'comida' }, { amountBs: 12, category: 'comida' }, { amountBs: 15, category: 'transporte' }]);
+check('saqué 1000 del cajero y pagué 20 de comisión', [{ type: 'cash_in', amountBs: 1000 }, { type: 'expense', amountBs: 20, category: 'otros' }]);
+check('café 25 y taxi 40, todo para la familia', [{ who: 'familia' }, { who: 'familia' }]);
+
+// --- números escritos
+check('cuatrocientos cincuenta en la compra del mes', { amountBs: 450, category: 'comida' });
+check('setenta y ocho bolivianos de farmacia', { amountBs: 78, category: 'salud' });
+check('doce bolivianos de pan', { amountBs: 12, category: 'comida' });
+check('gasté cinco en pan', { amountBs: 5, category: 'comida' });
+
+// --- sin importe
+check('café para Noah', { amountBs: null, category: 'resto', who: 'noah' });
+
+// --- palabras clave personalizadas
+check('pagué 300 a María', { category: 'personal' }, { extraCats: [{ id: 'personal', keywords: ['María'] }] });
+check('20 en el gimnasio', { category: 'deporte' }, { extraCats: [{ id: 'deporte', name: 'Deporte', keywords: ['gimnasio'] }] });
+
+console.log(`\n${pass} ok, ${fail} fallos`);
+process.exit(fail ? 1 : 0);
