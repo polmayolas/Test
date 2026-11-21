@@ -58,6 +58,12 @@
     let m;
     while ((m = re.exec(norm))) {
       const t = m[0];
+      const glued = /^(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)mil$/.exec(t);
+      if (glued) {
+        toks.push({ t: glued[1], start: m.index, end: m.index + glued[1].length, kind: 'word' });
+        toks.push({ t: 'mil', start: m.index + glued[1].length, end: m.index + t.length, kind: 'word' });
+        continue;
+      }
       toks.push({
         t, start: m.index, end: m.index + t.length,
         kind: /^\d/.test(t) ? 'num' : /^[a-z]/.test(t) ? 'word' : t === '$' || t === '€' ? 'sym' : 'punct'
@@ -80,11 +86,37 @@
     'recibi recibimos cobre cobramos ingrese ingresamos dieron dio total precio vale valio').split(' '));
 
   const AFTER_DEC = new Set(['y', 'en', 'para', 'de', 'del', 'por', 'el', 'la', 'al', 'a', 'con']);
-  const QTY_OK = new Set(['y', 'e', 'en', 'para', 'de', 'del', 'por', 'con', 'el', 'la', 'al', 'a', 'que', 'mas', 'menos', 'hoy', 'ayer', 'o', 'centavos', 'mil', 'medio', 'media', 'tambien', 'ademas', 'luego', 'despues', 'no', 'perdon', 'digo', 'cada']);
+  const QTY_OK = new Set(['y', 'e', 'en', 'para', 'de', 'del', 'por', 'con', 'el', 'la', 'al', 'a', 'que', 'mas', 'menos', 'hoy', 'ayer', 'o', 'centavos', 'mil', 'medio', 'media', 'tambien', 'ademas', 'luego', 'despues', 'no', 'perdon', 'digo', 'cada', 'ida', 'vuelta']);
 
-  const UNIT_NOUNS = new Set('ano anos dia dias mes meses semana semanas persona personas hora horas minuto minutos kilo kilos kg litro litros unidad unidades paquete paquetes vez veces docena metro metros'.split(' '));
+  const UNIT_NOUNS = new Set('ano anos dia dias mes meses semana semanas persona personas hora horas minuto minutos kilo kilos kg litro litros unidad unidades paquete paquetes vez veces docena metro metros gramos gr grs libra libras arroba arrobas ml cc plato platos'.split(' '));
   const STOPW = new Set('y e en de del por un una unos unas el la los las a al que para lo le les me nos te se mi con o es ha mas menos tambien ademas luego despues no si ya hoy ayer anoche cada'.split(' '));
   const isContent = w => !STOPW.has(w) && !VERBS.has(w) && !(w in UNITS) && !CUR[w] && w !== 'mil' && w.length > 1;
+  let KW_WORDS = null;
+  function kwWords() {
+    if (!KW_WORDS) { KW_WORDS = new Set(); CATS.forEach(c => Object.keys(c.kw).forEach(w => strip(c.kw[w]).split(/\s+/).forEach(x => x.length > 2 && KW_WORDS.add(x)))); }
+    return KW_WORDS;
+  }
+  // Número (en cifras o palabras) que empieza en k: {value, end}
+  function numberAt(toks, k, dropMask) {
+    const t = toks[k]; if (!t || dropMask[k]) return null;
+    if (t.kind === 'num') { const v = digitValue(t.t); return v === null ? null : { value: v, end: k + 1 }; }
+    if (t.kind !== 'word' || !(t.t in UNITS)) return null;
+    let cur = 0, last = null, i = k, afterY = false;
+    while (i < toks.length && !dropMask[i]) {
+      const w = toks[i].t;
+      if (toks[i].kind === 'word' && w in UNITS) {
+        const v = UNITS[w];
+        if (last === null) cur += v;
+        else if (isHundreds(last) && v < 100) cur += v;
+        else if (isTens(last) && afterY && v >= 1 && v <= 9) cur += v;
+        else break;
+        last = v; afterY = false; i++;
+      } else if (w === 'y' && last !== null && isTens(last) && toks[i + 1] && UNITS[toks[i + 1].t] >= 1 && UNITS[toks[i + 1].t] <= 9) { afterY = true; i++; }
+      else break;
+    }
+    return i > k ? { value: cur, end: i } : null;
+  }
+
   // Busca candidatos de importe. dropMask: índices de tokens que no pueden ser importe.
   function findAmounts(toks, dropMask) {
     const out = [];
@@ -94,7 +126,12 @@
       let value = null, j = i, fromWords = false;
       if (tk.kind === 'num') {
         value = digitValue(tk.t); j = i + 1;
-        if (toks[j] && toks[j].t === 'mil') { value *= 1000; j++; }
+        if (toks[j] && toks[j].t === 'mil') {
+          value *= 1000; j++;
+          // "2 mil 500" / "2 mil quinientos"
+          const rest = numberAt(toks, j, dropMask);
+          if (rest && rest.value < 1000) { value += rest.value; j = rest.end; }
+        }
       } else if (tk.kind === 'word' && (tk.t in UNITS || tk.t === 'mil')) {
         // un/una/uno sólo cuentan si van seguidos de "mil" o de moneda
         if ((tk.t === 'un' || tk.t === 'una' || tk.t === 'uno') &&
@@ -112,6 +149,8 @@
             last = v; afterY = false; k++;
           } else if (w === 'mil') {
             cur = (cur || 1) * 1000; total += cur; cur = 0; last = 'mil'; afterY = false; k++;
+            // "dos mil 500"
+            if (toks[k] && toks[k].kind === 'num' && !dropMask[k]) { const dv = digitValue(toks[k].t); if (dv !== null && dv < 1000) { cur += dv; k++; break; } }
           } else if (w === 'y' && typeof last === 'number' && isTens(last) && toks[k + 1] &&
                      UNITS[toks[k + 1].t] >= 1 && UNITS[toks[k + 1].t] <= 9) {
             afterY = true; k++;
@@ -134,10 +173,16 @@
       if (curOf(toks[j])) {
         currency = curOf(toks[j]); if (toks[j].t === '$') symIdx = j; curEnd = j + 1;
         if (toks[curEnd] && toks[curEnd].t === '.') curEnd++;
-        // "20 bolivianos 50 centavos"
-        const cn = toks[curEnd], cc = toks[curEnd + 1];
-        if (cn && cn.kind === 'num' && cc && cc.t === 'centavos') { const cv = digitValue(cn.t); if (cv > 0 && cv < 100 && Number.isInteger(value)) { value = value + cv / 100; curEnd += 2; } }
+        // "20 bolivianos 50 centavos", "cuarenta bolivianos y cincuenta centavos"
+        let ck = curEnd;
+        if (toks[ck] && (toks[ck].t === 'y' || toks[ck].t === 'con')) ck++;
+        const cnum = numberAt(toks, ck, dropMask);
+        if (cnum && toks[cnum.end] && toks[cnum.end].t === 'centavos' && cnum.value > 0 && cnum.value < 100 && Number.isInteger(value)) {
+          value = Math.round((value + cnum.value / 100) * 100) / 100; curEnd = cnum.end + 1;
+        }
       }
+      // "cincuenta centavos" sin entero delante
+      if (!currency && toks[j] && toks[j].t === 'centavos' && value < 100) { value = Math.round(value) / 100; curEnd = j + 1; currency = 'BOB'; }
       // moneda antes ("bs 25", "$20", "usd 20")
       let curStart = i;
       if (!currency && i > 0 && curOf(toks[i - 1]) && !dropMask[i - 1]) { currency = curOf(toks[i - 1]); curStart = i - 1; if (toks[i - 1].t === '$') symIdx = i - 1; }
@@ -173,11 +218,16 @@
       const prevContent = prev && prev.kind === 'word' && isContent(prev.t);
       if (fromWords && value <= 12 && !currency && !prevContent) score -= 1;
       // "2 cafés", "3 kilos": número pequeño seguido de un sustantivo = cantidad, no importe
-      const nx = toks[Math.max(end, j)];
+      const nxi = Math.max(end, j), nx = toks[nxi];
+      const laterNum = toks.slice(nxi).some(t => t.kind === 'num' || (t.kind === 'word' && t.t in UNITS && UNITS[t.t] > 12));
       if (!currency && value <= 12 && Number.isInteger(value) && nx && nx.kind === 'word' && !QTY_OK.has(nx.t)) {
-        if (UNIT_NOUNS.has(nx.t) || (!prevContent && value >= 2 && /s$/.test(nx.t))) score = Math.min(score - 2, -1);
+        // delante de un producto conocido ("leche 12 huevos 25") es un precio; tras un verbo ("cambiaron 4 llantas, 1600"), cantidad
+        const prevIsProduct = prevContent && kwWords().has(prev.t);
+        if (UNIT_NOUNS.has(nx.t) || ((!prevContent || (laterNum && !prevIsProduct)) && value >= 2 && /s$/.test(nx.t))) score = Math.min(score - 2, -1);
         else if (!prevContent) score -= 2;
       }
+      // "2 de mantequilla 30": cantidad + de + producto + precio
+      if (!currency && value <= 12 && Number.isInteger(value) && nx && nx.t === 'de' && toks[nxi + 1] && toks[nxi + 1].kind === 'word' && toks[nxi + 2] && toks[nxi + 2].kind === 'num') score = Math.min(score - 2, -1);
       out.push({ value, currency, fromWords, score, i0: curStart, i1: Math.max(end, j) - 1, numIdx: i, symIdx });
       i = Math.max(end, j) - 1;
     }
@@ -187,15 +237,15 @@
   // ---------- diccionarios ----------
   // peso 3 = lugar / señal fuerte; 1 = artículo
   const CATS = [
-    { id: 'comida', kw: { 3: 'supermercado super súper mercado feria tienda almacen almacén despensa verduleria verdulería carniceria carnicería panaderia panadería fruteria frutería minimarket abarrotes compra del mes compras de comida comida para casa ketal hipermaxi fidalga', 1: 'kilo kilos naranja naranjas mandarina mandarinas yuca choclo botellon de agua agua mineral comida verduras verdura fruta frutas pan leche huevos huevo carne pollo queso arroz aceite fideos azucar azúcar harina yogur cereal papas papa tomates tomate cebolla platano plátano manzanas palta paltas mantequilla jamon jamón botellon botellón garrafon garrafón cafe molido galletas snacks lentejas frijoles pescado verdurita abarrote' } },
-    { id: 'resto', kw: { 4: 'cafe con leche café con leche', 3: 'api sonso zonzo tucumana tucumanas silpancho majadito anticucho anticuchos salteña salteñas saltena saltenas pique desayuno desayunamos comimos cenamos almorzamos para llevar restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería pension pensión comedor', 1: 'mani maní chicharron chicharrón api sonso zonzo tucumana tucumanas silpancho majadito saice sopa anticucho anticuchos broaster pollo frito mocochinchi chicha refresco masaco cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
+    { id: 'comida', kw: { 3: 'supermercado super súper mercado feria tienda almacen almacén despensa verduleria verdulería carniceria carnicería panaderia panadería fruteria frutería minimarket abarrotes compra del mes compras de comida comida para casa ketal hipermaxi fidalga', 1: 'marraqueta marraquetas gaseosa gaseosas kilo kilos naranja naranjas mandarina mandarinas yuca choclo botellon de agua agua mineral comida verduras verdura fruta frutas pan leche huevos huevo carne pollo queso arroz aceite fideos azucar azúcar harina yogur cereal papas papa tomates tomate cebolla platano plátano manzanas palta paltas mantequilla jamon jamón botellon botellón garrafon garrafón cafe molido galletas snacks lentejas frijoles pescado verdurita abarrote' } },
+    { id: 'resto', kw: { 4: 'cafe con leche café con leche jugo de', 3: 'api sonso zonzo tucumana tucumanas silpancho majadito anticucho anticuchos salteña salteñas saltena saltenas pique desayuno desayunamos comimos cenamos almorzamos para llevar restaurante restaurant resto cafeteria cafetería bar pizzeria pizzería heladeria heladería pub salimos a comer comer fuera comimos fuera cenamos fuera almorzamos almuerzo cena cenar almorzar menu menú brunch pasteleria pastelería pension pensión comedor', 1: 'coca cola salchipapa salchipapas huminta humintas humita humitas chipa chipas mate mani maní chicharron chicharrón api sonso zonzo tucumana tucumanas silpancho majadito saice sopa anticucho anticuchos broaster pollo frito mocochinchi chicha refresco masaco cafe café cafecito capuchino cappuccino latte te té pizza helado helados cerveza cervezas chela vino copa salteña salteñas saltena saltenas empanada empanadas hamburguesa sandwich sándwich tortas torta pastel postre desayuno jugo jugos comida rapida comida rápida propina pique cunape cuñapé' } },
     { id: 'transporte', kw: { 3: 'taxi taxis trufi micro bus buses colectivo flota mototaxi uber gasolina combustible diesel diésel peaje transfer traslado pasaje pasajes parqueo transporte surtidor nafta taxista mecanico mecánico taller llanta llantas gomeria gomería surubi vagoneta', 4: 'cambio de aceite aceite del auto', 1: 'auto coche camioneta moto viaje a santa cruz a santa cruz de santa cruz aeropuerto viru viru' } },
     { id: 'personal', kw: { 3: 'limpieza señora de la limpieza senora de la limpieza limpiadora empleada empleada domestica nana niñera ninera cuidadora canguro jardinero jardinera chica que cuida cuida a noah cuidar a noah cuidado de noah sueldo planchado lavado de ropa lavandera que limpia nos limpia', 1: 'ayuda' } },
     { id: 'casa', kw: { 4: 'productos de limpieza articulos de limpieza', 3: 'alquiler renta luz electricidad agua potable factura del agua gas garrafa internet wifi telefono teléfono agua cre cotas cooperativa de agua saguapac megas recarga credito para el celular crédito para el celular ferreteria ferretería reparacion reparación arreglo plomero electricista cerrajero muebles mueble lavanderia lavandería tigo entel viva', 1: 'pintura cemento clavos casa hogar bombilla foco detergente lavandina escoba papel higienico papel higiénico' } },
-    { id: 'salud', kw: { 3: 'farmacia medico médico doctor doctora medicina medicinas medicamento medicamentos dentista hospital clinica clínica analisis análisis laboratorio consulta pediatra medica médica posta centro de salud seguro medico seguro médico vacuna vacunas psicologo psicólogo fisioterapia', 1: 'jarabe antibiotico antibiótico curitas termometro termómetro pastillas ibuprofeno paracetamol vitaminas' } },
-    { id: 'ocio', kw: { 3: 'ocio excursion excursión tour cine fiesta piscina museo paseo cabalgata entrada entradas concierto amboro amboró el fuerte cuevas pajcha la pajcha vinedo viñedo bodega yoga clase de clases de actividad hotel hostal cabaña cabana alojamiento vacaciones', 1: 'juego juegos libro libros' } },
+    { id: 'salud', kw: { 3: 'farmacia medico médico doctor doctora medicina medicinas medicamento medicamentos dentista hospital clinica clínica analisis análisis laboratorio consulta pediatra medica médica posta centro de salud seguro medico seguro médico vacuna vacunas psicologo psicólogo fisioterapia', 1: 'farmasia masaje jarabe antibiotico antibiótico curitas termometro termómetro pastillas ibuprofeno paracetamol vitaminas' } },
+    { id: 'ocio', kw: { 3: 'ocio excursion excursión tour cine fiesta piscina museo paseo cabalgata entrada entradas concierto amboro amboró el fuerte cuevas pajcha la pajcha vinedo viñedo bodega yoga clase de clases de actividad hotel hostal cabaña cabana alojamiento vacaciones mirador', 1: 'bici bicis guia guía habitacion habitación juego juegos libro libros' } },
     { id: 'noah', kw: { 3: 'pañales panales toallitas guarderia guardería juguete juguetes kinder colegio escuela', 1: 'biberon biberón chupete papilla leche de formula leche de fórmula ropa de noah' } },
-    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador regalo regalos', 1: 'gafas lentes anteojos bicicleta tela celular camisa camisas polera poleras chamarra sandalias chinelas bloqueador protector solar camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
+    { id: 'compras', kw: { 3: 'ropa zapatos zapatillas peluqueria peluquería corte de pelo barberia barbería cosmetica cosmética maquillaje electronica electrónica cargador regalo regalos', 1: 'flores botas gafas lentes anteojos bicicleta tela celular camisa camisas polera poleras chamarra sandalias chinelas bloqueador protector solar camiseta pantalon pantalón vestido chaqueta mochila bolso perfume crema champu champú' } },
     { id: 'otros', kw: { 3: 'comision comisión impuesto multa tramite trámite donacion donación', 1: '' } }
   ];
 
@@ -208,7 +258,7 @@
     'viru viru', 'senora de la limpieza', 'empleada domestica', 'chica que cuida', 'cuida a noah', 'cuidar a noah',
     'cuidado de noah', 'lavado de ropa', 'productos de limpieza', 'articulos de limpieza', 'agua potable',
     'factura del agua', 'credito para el celular', 'papel higienico', 'seguro medico', 'el fuerte', 'la pajcha',
-    'clase de', 'clases de', 'cafe con leche', 'para llevar', 'cambio de aceite', 'aceite del auto', 'botellon de agua', 'agua mineral', 'pollo frito', 'cooperativa de agua', 'centro de salud', 'que limpia', 'nos limpia', 'protector solar', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
+    'clase de', 'clases de', 'cafe con leche', 'jugo de', 'para llevar', 'cambio de aceite', 'aceite del auto', 'botellon de agua', 'agua mineral', 'pollo frito', 'cooperativa de agua', 'centro de salud', 'que limpia', 'nos limpia', 'protector solar', 'leche de formula', 'ropa de noah', 'corte de pelo', 'mercado campesino'
   ];
 
   function buildIndex(extra) {
@@ -238,7 +288,7 @@
     // dedupe & compila
     const seen = new Set();
     return idx.filter(e => { const k = e.p + '|' + e.cat + '|' + e.w; if (seen.has(k)) return false; seen.add(k); return true; })
-      .map(e => ({ ...e, re: new RegExp('(?:^|[^a-z0-9])' + escapeRe(e.p).replace(/ /g, '\\s+') + '(?:s|es)?(?=$|[^a-z0-9])') }));
+      .map(e => ({ ...e, re: new RegExp('(?:^|[^a-z])' + escapeRe(e.p).replace(/ /g, '\\s+') + '(?:s|es)?(?=$|[^a-z])') }));
   }
   function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -252,6 +302,8 @@
   function categorize(norm, extra) {
     const idx = getIndex(extra);
     const score = {};
+    // "taxi al hospital": el medio de transporte manda
+    if (/\b(?:taxi|trufi|micro|mototaxi|flota|uber|bus)s? (?:al|a la|a|hasta|para el|para la|del|de la)\b/.test(norm)) score.transporte = 2;
     for (const e of idx) {
       if (e.re.test(norm)) score[e.cat] = (score[e.cat] || 0) + e.w + e.p.length / 100;
     }
@@ -261,7 +313,7 @@
   }
 
   // ---------- quién ----------
-  const WHO_SUBJ_RE = /\b(sol|pol|paul|pool|noah|noa) (?:pago|pagaron|compro|gasto|dice|dijo|fue|trajo|pidio|saco|cambio|tiene|quiere|me dijo|nos dijo|ya)\b/g;
+  const WHO_SUBJ_RE = /\b(sol|pol|paul|pool|noah|noa) (?:(?:me|le|les|nos) )?(?:pago|pagaron|compro|gasto|dice|dijo|fue|trajo|pidio|saco|cambio|tiene|quiere|me dijo|nos dijo|ya)\b/g;
   const WHO_WITH_RE = /\bcon (?:sol|pol|paul|pool)\b/g;
   const SUN_RE = /\b(?:gafas|lentes|anteojos|crema|protector|bloqueador|sombrero|gorra) (?:de|del|para el|contra el) sol\b/g;
   function detectWho(norm, me) {
@@ -274,7 +326,11 @@
     let sol = false;
     { const re = /(^|[^a-z])(el |del |al )?sol\b/g; let m; while ((m = re.exec(norm))) { if (!m[2]) { sol = true; break; } } }
     let pol = has(/\b(pol|paul|pool)\b/);
-    const forMe = has(/\b(para mi|para mi mismo|para mi misma|mio|mia)\b/);
+    const forMe = has(/\b(para mi|para mi mismo|para mi misma|mio|mia|me compre|me he comprado|me corte)\b/) ||
+      has(/\b(?:mi|mis) (?!hijo|hija|suegr|madre|padre|mama|papa|abuel|herman|tio|tia|mujer|esposa|marido|esposo|familia|casa|novi|amig|cuenta|tarjeta)[a-z]/);
+    if (has(/\b(?:sol|pol|paul) y yo\b|\byo y (?:sol|pol|paul)\b/)) return 'pareja';
+    if (has(/\bmi (?:mujer|esposa)\b/) && me === 'Pol') return 'sol';
+    if (has(/\bmi (?:marido|esposo)\b/) && me === 'Sol') return 'pol';
     const forYou = has(/\b(para ti|para vos)\b/);
     if (forMe && me) { if (me === 'Sol') sol = true; else if (me === 'Pol') pol = true; }
     if (forYou && me) { if (me === 'Sol') pol = true; else if (me === 'Pol') sol = true; }
@@ -291,7 +347,7 @@
   const DAYS = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
   const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
   const MONTH_RE = '(?:' + MONTHS.join('|') + ')';
-  const DATE_RE = /\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:el )?(?:dia )?\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|el dia \d{1,2}|hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) (?:dias?|semanas?))\b/g;
+  const DATE_RE = /\b(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|(?:el )?(?:primero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|diecisiete|dieciocho|diecinueve|veinte|veintiuno|veintidos|veintitres|veinticuatro|veinticinco|veintiseis|veintisiete|veintiocho|veintinueve|treinta|treinta y uno) de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|el (?:(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo) )?\d{1,2}(?= (?!bs\b|bolivianos\b|pesos\b|dolares\b|euros\b|de\b|por\b|x\b|y\b|con\b|centavos\b|mil\b)[a-z])|(?:el )?(?:dia )?\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)|el dia \d{1,2}|hoy|ayer|anteayer|antier|antes de ayer|anoche|esta manana|esta tarde|esta noche|(?:el )?(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?: pasado)?|hace (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete) (?:dias?|semanas?))\b/g;
   function detectDate(norm, now) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     let m;
@@ -326,7 +382,12 @@
     let day, mon, year = null;
     if (m) { day = +m[1]; mon = +m[2] - 1; if (m[3]) year = m[3].length === 2 ? 2000 + +m[3] : +m[3]; }
     else if ((m = /(\d{1,2}) de ([a-z]+)$/.exec(s))) { day = +m[1]; mon = MONTHS.indexOf(m[2]); if (mon > 8) mon = m[2] === 'setiembre' ? 8 : mon - 1; }
-    else if ((m = /^el dia (\d{1,2})$/.exec(s))) { day = +m[1]; mon = today.getMonth(); }
+    else if ((m = /^el dia (\d{1,2})$/.exec(s)) || (m = /^el (?:[a-z]+ )?(\d{1,2})$/.exec(s))) { day = +m[1]; mon = today.getMonth(); s = 'el dia ' + day; }
+    else if ((m = /^(?:el )?([a-z]+(?: y uno)?) de ([a-z]+)$/.exec(s))) {
+      day = m[1] === 'primero' ? 1 : m[1] === 'treinta y uno' ? 31 : UNITS[m[1]];
+      mon = MONTHS.indexOf(m[2]); if (mon > 8) mon = m[2] === 'setiembre' ? 8 : mon - 1;
+      if (!day) return null;
+    }
     else return null;
     if (!(day >= 1 && day <= 31) || !(mon >= 0 && mon <= 11)) return null;
     let y = year || today.getFullYear();
@@ -353,7 +414,7 @@
   const OTHER_ANY_RE = /\b(cobre|cobramos|me pagaron|nos pagaron|me devolvieron|nos devolvieron|me devolvio|nos devolvio|me regalaron|nos regalaron|devolucion|reembolso|reembolsaron|vendi|vendimos|casa de cambio)\b/;
   const EXCHANGE_RE = /\b(cambie|cambiamos|cambiado|cambiar|cambio|cambiaron|vendi|vendimos|casa de cambio)\b/;
   const FOREIGN_RE = /\b(dolares|dolar|usd|euros|euro|eur|verdes)\b|[$€]/;
-  const NOT_CASHIN_RE = /\b(pague|pagamos|gaste|gastamos|compre|compramos|comision|propina)\b/;
+  const NOT_CASHIN_RE = /\b(pague|pagamos|gaste|gastamos|compre|compramos|comision|propina|(?:me|nos|le|les) cobr(?:o|aron))\b/;
   // "cambié 700 bolivianos a dólares": salen bolivianos -> gasto
   const BUY_FOREIGN_RE = /\b(?:bs|bolivianos|pesos)\b.*\b(?:a|por|en)\s+(?:dolares|euros)\b|\bcompr\w* (?:\d\S* )?(?:dolares|euros)\b/;
 
@@ -380,10 +441,11 @@
     /\b(?:anota|anotar|apunta|apuntar|registra|registrar|anade|agrega|pon)(?:me)?\b/g,
     /\b(?:gaste|gastamos|gastaste|pague|pagamos|pagaste|compre|compramos|saque|sacamos|retire|retiramos|cambie|cambiamos|recibi|recibimos|cobre|cobramos|son|fueron|costo|cuesta|total|en total|vale|valio)\b/g,
     /\b(?:centavos)\b/g,
+    /\b(?:a )?cada (?:uno|una)\b/g,
     /\b(?:en efectivo|efectivo|en cash|cash)\b/g
   ];
   const WHO_PHRASE = /\b(?:y )?(?:el gasto )?(?:es |fue |va )?(?:para|de|a|por) (?:mi mismo|mi misma|mi|ti|vos|noah|noa|noe|sol|pol|paul|pool|los dos|nosotros dos|nosotros|ambos|la pareja|toda la familia|la familia|familia|todos|los tres|el nene|el bebe|el peque|nuestro hijo|mi hijo)(?: y (?:para )?(?:mi|ti|noah|noa|sol|pol|paul|el nene|el bebe))*\b/g;
-  const LEAD = new Set('en de del por un una unos unas el la los las a al y e que para lo le mi con o es ha'.split(' '));
+  const LEAD = new Set('en de del por un una unos unas el la los las a al y e que para lo le mi me nos te se con o es ha di dimos'.split(' '));
   const TRAIL = new Set('y e de en por para el la los las con que a al del o un una'.split(' '));
 
   function describe(orig, norm, toks, dropSpans) {
@@ -434,11 +496,13 @@
     }
     const NT = '(\\d{1,2}(?:[:.]\\d{2})?|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)';
     const NOT_AMOUNT = [
-      /\b\d+(?:[.,]\d+)? ?(?:km|kms|kilometros?|metros?|mts?)\b/g,
+      /\b\d+(?:[.,]\d+)? ?(?:km|kms|kilometros?|metros?|mts?|gramos|grs?|ml|cc|libras?|arrobas?)\b/g,
       /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g,
       new RegExp('\\b(?:a|de|desde|hasta|para) las? ' + NT + '(?: y (?:media|cuarto|\\d+))?\\b', 'g'),
       new RegExp('\\b' + NT + ' (?:de la (?:manana|tarde|noche)|en punto|horas?|hrs?|minutos?|mins?)\\b', 'g'),
-      /\b(?:calle|avenida|av|km|kilometro|numero|nro|habitacion|talla|piso|linea|puesto|mesa para) \d+\b/g,
+      /\b(?:calle|avenida|av|numero|nro|habitacion|talla|piso|linea|puesto|mesa para) \d+\b/g,
+      // "km 3" (sin número delante ni moneda detrás: "300 km 250 bolivianos" conserva el 250)
+      /(?:^|[^\d\s] ?|[a-z] )\b(?:km|kilometro) \d+\b(?! ?(?:bs|bolivianos|pesos))/g,
       new RegExp('\\bde ' + NT + ' a ' + NT + '(?=\\s+(?:\\d|horas|hrs))', 'g'),
       new RegExp('\\b\\d{1,2} de (?:' + MONTHS.join('|') + ')\\b', 'g')
     ];
@@ -457,14 +521,33 @@
     let amounts = findAmounts(toks, dropMask);
     amounts.forEach(a => { if (demote[a.numIdx] && !a.currency) a.score -= 3; });
     // (d) correcciones habladas: "25, no, 35" / "40, digo 45" -> vale el último
-    const CORR_KEY = new Set(['no', 'perdon', 'digo', 'dicho', 'decir', 'sea', 'corrijo', 'error', 'rectifico']);
-    const CORR_ALL = new Set([...CORR_KEY, 'mejor', 'quiero', 'o', 'es', 'son', 'eran', 'fueron', 'mas', 'bien', 'perdona', 'uy', 'ay', 'eh', 'este', 'que', 'en', 'realidad']);
+    const CORR_KEY = new Set(['no', 'perdon', 'digo', 'dicho', 'decir', 'sea', 'corrijo', 'error', 'rectifico', 'realidad', 'espera']);
+    const CORR_STRONG = new Set(['perdon', 'digo', 'dicho', 'corrijo', 'rectifico', 'realidad', 'espera', 'error']);
+    const CORR_ALL = new Set([...CORR_KEY, 'mejor', 'quiero', 'o', 'es', 'son', 'era', 'eran', 'fue', 'fueron', 'mas', 'bien', 'perdona', 'uy', 'ay', 'eh', 'este', 'que', 'en', 'bueno', 'pues', 'ah', 'el', 'la']);
     const corrSpans = [];
     amounts = amounts.filter((a, k) => {
       const b = amounts[k + 1]; if (!b) return true;
       const between = toks.slice(a.i1 + 1, b.i0);
-      if (between.length && between.every(t => t.kind === 'punct' || CORR_ALL.has(t.t)) && between.some(t => CORR_KEY.has(t.t))) {
-        corrSpans.push([toks[a.i0].start, toks[b.i0 - 1].end]); return false;
+      if (!between.length) return true;
+      const drop = () => { corrSpans.push([toks[a.i0].start, toks[b.i0 - 1].end]); return false; };
+      // "25, no, 35" / "40, digo 45"
+      if (between.every(t => t.kind === 'punct' || CORR_ALL.has(t.t)) && between.some(t => CORR_KEY.has(t.t))) return drop();
+      // "no eran 50, eran 60 del mercado"
+      const pre = toks.slice(Math.max(0, a.i0 - 2), a.i0).map(t => t.t);
+      if (pre.indexOf('no') >= 0 && pre.some(w => /^(era|eran|fue|fueron|es|son)$/.test(w)) &&
+          between.every(t => t.kind === 'punct' || CORR_ALL.has(t.t))) return drop();
+      // "30 en el taxi, bueno, en realidad fueron 35" / "leche 10, no, leche 12": la corrección repite el mismo concepto
+      const words = between.filter(t => t.kind === 'word');
+      const firstWords = words.filter(t => !/^(bueno|pues|eh|ah|uy|ay|este)$/.test(t.t)).slice(0, 2).map(t => t.t);
+      const strong = words.some(t => CORR_STRONG.has(t.t)) || firstWords[0] === 'no';
+      if (strong) {
+        const prevEnd = k > 0 ? amounts[k - 1].i1 + 1 : 0;
+        const prefix = toks.slice(prevEnd, a.i0);
+        const txt = ts => ts.filter(t => t.kind === 'word').map(t => t.t).join(' ');
+        const other = words.filter(t => !CORR_ALL.has(t.t));
+        const catB = other.length ? categorize(txt(other), extra) : null;
+        const catAll = categorize(txt(prefix.concat(between)), extra);
+        if (!other.length || !catB || catB === catAll) return drop();
       }
       return true;
     });
@@ -568,6 +651,7 @@
     let carryDate = null;
     const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+    let prevCategory = null;
     const items = merged.slice(0, 20).map((c, ci) => {
       const [s, e] = spanOf(c);
       const cNorm = norm.slice(s, e);
@@ -613,8 +697,10 @@
         pick = sorted[0] || null;
         if (pick) {
           amount = pick.value; currency = pick.currency || 'BOB';
-          const aft = toks[pick.i1 + 1], aft2 = toks[pick.i1 + 2];
-          if (aft && aft.t === 'cada' && aft2 && /^(uno|una)$/.test(aft2.t)) {
+          const aft = toks[pick.i1 + 1], aft2 = toks[pick.i1 + 2], bef = toks[pick.i0 - 1];
+          const unitPrice = (aft && aft.t === 'cada' && aft2 && /^(uno|una)$/.test(aft2.t)) ||
+            (bef && bef.t === 'a' && (!aft || aft.kind === 'punct' || /^(el|la|cada|c|por)$/.test(aft.t) || curOf(aft)));
+          if (unitPrice) {
             const q = amounts.find(a => a.i0 >= c.a && a.i1 < pick.i0 && a.score < 1 && Number.isInteger(a.value) && a.value >= 2 && a.value <= 50);
             if (q) amount = round2(q.value * pick.value);
           }
@@ -630,10 +716,18 @@
       let who = whoMentions[ci] || (distinctWho.size === 1 ? [...distinctWho][0] : null);
       let category = null, guessed = false;
       if (tinfo.type === 'expense') {
-        category = categorize(cNorm, extra) || (merged.length === 1 ? null : categorize(norm, extra));
+        category = categorize(cNorm, extra);
+        // una cláusula sin concepto propio ("… y 30 para mí") hereda la categoría del movimiento anterior;
+        // si trae un concepto que no se reconoce ("gaseosa 8"), se pide elegir
+        if (!category && ci > 0 && prevCategory) {
+          const NAMES = /^(sol|pol|paul|pool|noah|noa|noe|familia|pareja|todos|tres|dos|ambos|nene|bebe|peque)$/;
+          const hasConcept = toks.slice(c.a, c.b).some(t => t.kind === 'word' && isContent(t.t) && !NAMES.test(t.t) && !CUR[t.t] && !/^(qr|efectivo|cash|tarjeta)$/.test(t.t));
+          if (!hasConcept) category = prevCategory;
+        }
         if (!category && who === 'noah') category = 'noah';
         if (!category) { category = 'otros'; guessed = true; }
         if (!who) who = category === 'noah' ? 'noah' : 'familia';
+        if (!guessed) prevCategory = category;
       }
       let note = describe(cOrig, cNorm, toks, drop.map(([a, b]) => [a - s, b - s]));
       if (tinfo.type === 'cash_in') {

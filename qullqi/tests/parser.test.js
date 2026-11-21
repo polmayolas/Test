@@ -124,5 +124,28 @@ check('Almuerzo 30 para Sol y 30 para mí', [{ who: 'sol' }, { who: 'pol' }]);
 check('comimos en la pensión 45', { category: 'resto' });
 check('me dieron 980 bolivianos por 100 dólares', { type: 'cash_in', source: 'exchange', amountBs: 980 });
 
+// --- cuarta ronda
+check('el 15 pagué el alquiler 2500', { amountBs: 2500, date: '2026-11-15', category: 'casa' });
+check('el martes 17 taxi 20', { amountBs: 20, date: '2026-11-17' });
+check('el quince de noviembre luz 85', { amountBs: 85, date: '2026-11-15' });
+check('pagué 30 en el taxi, bueno, en realidad fueron 35', { amountBs: 35 });
+check('no eran 50, eran 60 del mercado', { amountBs: 60 });
+check('pan 8 y leche 10, no, leche 12', [{ amountBs: 8 }, { amountBs: 12 }]);
+check('100 gramos de queso 12', { amountBs: 12 });
+check('mecánico, cambiaron 4 llantas, 1600', { amountBs: 1600 });
+check('gasolina para 300 km 250 bolivianos', { amountBs: 250 });
+check('dos almuerzos a 30', { amountBs: 60 });
+check('alquiler 2 mil 500', { amountBs: 2500 });
+check('alquiler dosmil quinientos', { amountBs: 2500 });
+check('chicle cincuenta centavos', { amountBs: 0.5 });
+check('almuerzo cuarenta bolivianos y cincuenta centavos', { amountBs: 40.5 });
+check('el cajero del súper me cobró 150', { type: 'expense', amountBs: 150 });
+check('trufi 6 ida y 6 vuelta', [{ amountBs: 6 }, { amountBs: 6 }]);
+check('pan 8 leche 12 huevos 25', [{ amountBs: 8 }, { amountBs: 12 }, { amountBs: 25 }]);
+check('taxi 20 y gaseosa 8', [{ category: 'transporte' }, { category: 'comida' }]);
+check('taxi 20 y unas jarritas 10', [{ category: 'transporte' }, { category: 'otros' }]);
+check('me compré una camisa 100', { who: 'pol', category: 'compras' });
+check('taxi al hospital 10', { category: 'transporte' });
+
 console.log(`\n${pass} ok, ${fail} fallos`);
 process.exit(fail ? 1 : 0);

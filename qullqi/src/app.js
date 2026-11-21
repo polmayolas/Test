@@ -361,7 +361,7 @@
     if (t.type === 'cash_in') {
       const s = srcOf(t.source);
       title = t.note || s.name;
-      sub.push(s.short || s.name);
+      sub.push(title === (s.short || s.name) || title === s.name ? 'Entrada de efectivo' : (s.short || s.name));
       if (t.currency && t.currency !== 'BOB' && t.origAmount) sub.push(num(t.origAmount) + ' ' + t.currency);
       amt = '+' + money(t.amount); cls = 'in';
     } else if (t.type === 'adjust') {
@@ -564,7 +564,7 @@
     const prevName = DF_MONTH_ONLY.format(new Date(yy, mm - 2, 1));
 
     let h = '<div class="hero"><p class="label">Gastado en ' + esc(monthName) + '</p><p class="big">' + moneyHTML(total) + '</p>' +
-      '<p class="sub">' + (exp.length ? 'Media diaria ' + esc(money(total / daysElapsed)) + ' · ' + exp.length + (exp.length === 1 ? ' gasto' : ' gastos') : 'Sin gastos este mes') +
+      '<p class="sub">' + (exp.length ? 'Media diaria ' + esc(money(Math.round(total / daysElapsed))) + ' · ' + exp.length + (exp.length === 1 ? ' gasto' : ' gastos') : 'Sin gastos este mes') +
       (prevTotal ? '<br>' + esc(cap(prevName)) + ': ' + esc(money(prevTotal)) : '') + '</p></div>';
 
     if (!exp.length) {
@@ -696,7 +696,9 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(hideToast, actLabel ? 7000 : 3200);
   }
-  function hideToast() { clearTimeout(toastTimer); $('#toast').classList.remove('show'); $('#toast-act').hidden = true; $('#toast-act').onclick = null; }
+  function hideToast() {
+    if ($('#toast').contains(document.activeElement)) { const m = $('#mic'); if (m) m.focus({ preventScroll: true }); }
+    clearTimeout(toastTimer); $('#toast').classList.remove('show'); $('#toast-act').hidden = true; $('#toast-act').onclick = null; }
 
   // ---------------------------------------------------------------- hoja
   let lastFocus = null;
@@ -733,15 +735,30 @@
     setTimeout(() => { if (!S.sheet) { sh.hidden = true; sc.hidden = true; $('#sheet-body').innerHTML = ''; } }, 300);
     if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus({ preventScroll: true }); } catch (e) { /* */ } }
   }
+  function focusKey(el, root) {
+    if (!el || !root.contains(el) || el === root) return null;
+    if (el.id) return '#' + CSS.escape(el.id);
+    const parts = ['data-k', 'data-v', 'data-i', 'data-set-me', 'data-color', 'data-act', 'data-cat-edit']
+      .filter(a => el.hasAttribute(a)).map(a => '[' + a + '="' + CSS.escape(el.getAttribute(a)) + '"]');
+    return parts.length ? parts.join('') : null;
+  }
+  // Cancelar una revisión dictada no pierde la frase: queda en el campo de texto para corregirla
+  function cancelSheet() {
+    const st = S.sheet;
+    if (st && st.kind === 'entry' && st.text && !st.editId) { $('#say').value = st.text; updateSend(); }
+    closeSheet();
+  }
   function renderSheet() {
     const st = S.sheet; if (!st) return;
     const body = $('#sheet-body');
     const scroll = body.scrollTop;
+    const fk = focusKey(document.activeElement, body);
     const ok = $('#sheet-ok'), cancel = $('#sheet-cancel');
     if (st.kind === 'entry') renderEntry(st, body, ok, cancel);
     else if (st.kind === 'settings') renderSettings(st, body, ok, cancel);
     else if (st.kind === 'cat') renderCatEditor(st, body, ok, cancel);
     body.scrollTop = scroll;
+    if (fk) { const el = body.querySelector(fk); if (el) el.focus({ preventScroll: true }); }
   }
 
   // ---- hoja: movimiento(s)
@@ -993,33 +1010,33 @@
     const ro = !S.canWrite;
     const waiting = !dataReady();
     let h = '';
-    h += '<div class="set-sec"><h4>Este móvil</h4><div class="set-card" style="padding:12px 14px"><div class="seg" role="group" aria-label="Quién usa este móvil">' +
+    h += '<div class="set-sec"><h3>Este móvil</h3><div class="set-card" style="padding:12px 14px"><div class="seg" role="group" aria-label="Quién usa este móvil">' +
       PEOPLE.map(p => '<button type="button" data-set-me="' + p + '" aria-pressed="' + (S.me === p) + '">Soy ' + p + '</button>').join('') +
       '</div></div><p class="foot">Sirve para entender «para mí» y para saber quién anotó cada gasto.</p></div>';
-    h += '<div class="set-sec"><h4>Efectivo en mano</h4><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>' + (waiting ? 'Esperando datos…' : 'Qullqi calcula ' + esc(money(bal))) + '</small></label>' +
+    h += '<div class="set-sec"><h3>Efectivo en mano</h3><div class="set-card"><div class="set-row"><label class="grow" for="adj-in">Tengo ahora<small>' + (waiting ? 'Esperando datos…' : 'Qullqi calcula ' + (bal < 0 ? '−' : '') + esc(money(bal))) + '</small></label>' +
       '<input class="inline" id="adj-in" type="text" inputmode="decimal" placeholder="Bs"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '/>' +
       '<button type="button" class="act" data-act="adjust"' + (ro || S.adjusting || waiting ? ' disabled' : '') + '>Ajustar</button></div></div>' +
       '<p class="foot">Cuenta los billetes y escribe lo que tenéis. Se anota un ajuste por la diferencia.</p></div>';
-    h += '<div class="set-sec"><h4>Tipo de cambio</h4><div class="set-card">' +
+    h += '<div class="set-sec"><h3>Tipo de cambio</h3><div class="set-card">' +
       ['USD', 'EUR'].map(c => '<div class="set-row"><label class="grow" for="rate-' + c + '">1 ' + (c === 'USD' ? 'dólar' : 'euro') + ' =</label><input class="inline" id="rate-' + c + '" data-rate="' + c + '" type="text" inputmode="decimal" value="' + esc(String(rt[c]).replace('.', ',')) + '"' + (ro ? ' disabled' : '') + '/><span>Bs</span></div>').join('') +
       '</div><p class="foot">Solo se usa si dictas un cambio sin decir cuántos bolivianos te dieron.</p></div>';
-    h += '<div class="set-sec"><h4>Categorías</h4><ul class="set-card list">' +
+    h += '<div class="set-sec"><h3>Categorías</h3><ul class="set-card list">' +
       cats().map(c => '<li><button type="button" class="set-row" data-cat-edit="' + esc(c.id) + '"' + (ro ? ' disabled' : '') + '><span class="tile sm" style="background:' + esc(c.color) + '">' + svg(c.icon) + '</span>' +
         '<span class="grow"><span class="cn"></span><small class="ck"></small></span>' + svg('right', ' class="chev"') + '</button></li>').join('') +
       (ro ? '' : '<li><button type="button" class="set-row link-row" data-cat-edit="__new">' + svg('plus', ' style="width:20px;height:20px"') + '<span class="grow">Añadir categoría</span></button></li>') +
       '</ul><p class="foot">Añade palabras clave (por ejemplo, el nombre de la niñera) para que la categoría se elija sola al dictar.</p></div>';
-    h += '<div class="set-sec"><h4>Datos</h4><div class="set-card">' +
+    h += '<div class="set-sec"><h3>Datos</h3><div class="set-card">' +
       '<button type="button" class="set-row link-row" data-act="csv">' + (S.downloads ? 'Descargar movimientos (CSV)' : 'Copiar movimientos (CSV)') + '</button></div>' +
       '<div id="csv-box"></div><p class="foot">' + (S.mode === 'shared' ? 'Los datos se guardan en Qullqi y se comparten con quien tenga acceso. Se actualizan solos en todos los móviles.' : 'Los datos se guardan solo en este navegador.') + ' ' + S.txns.size + ' movimientos.</p></div>';
-    h += '<div class="set-sec"><h4>Cómo dictar</h4><div class="set-card" style="padding:12px 14px;font-size:15px;line-height:1.55">' +
+    h += '<div class="set-sec"><h3>Cómo dictar</h3><div class="set-card" style="padding:12px 14px;font-size:15px;line-height:1.55">' +
       '<q>Me acabo de gastar 25 bolivianos en un café para Sol y Pol</q><br><q>120 en el súper para toda la familia</q><br><q>Taxi a Santa Cruz 350 con QR</q><br><q>Ayer pagamos 150 a la señora de la limpieza</q><br><q>Saqué 1000 del cajero</q><br><q>Cambié 100 dólares y me dieron 950</q><br><q>Pan 10, leche 12 y taxi 15</q></div></div>';
-    h += '<div class="set-sec"><h4>Acerca de</h4><div class="set-card about">' + LOGO +
+    h += '<div class="set-sec"><h3>Acerca de</h3><div class="set-card about">' + LOGO +
       '<p><strong>Qullqi</strong>«Plata, dinero» en quechua y aimara. La plata de la familia, anotada en un momento.</p></div></div>';
     body.innerHTML = h;
     $$('[data-cat-edit]', body).forEach(b => {
       const c = cats().find(x => x.id === b.dataset.catEdit); if (!c) return;
       $('.cn', b).textContent = c.name;
-      $('.ck', b).textContent = c.keywords.length ? 'Tus palabras: ' + c.keywords.join(', ') : (c.hint ? 'Ya reconoce: ' + c.hint.toLowerCase() : 'Sin palabras clave');
+      $('.ck', b).textContent = c.keywords.length ? 'Tus palabras: ' + c.keywords.join(', ') : c.id === 'otros' ? 'Lo que no encaja en otra categoría' : (c.hint ? 'Reconoce: ' + c.hint : 'Sin palabras clave');
     });
   }
   async function onSettingsClick(e) {
@@ -1195,7 +1212,12 @@
   function wireDictation(d) {
     S.dict = d;
     d.onPartial(({ text }) => { S.partial = text || ''; renderLive(); });
-    d.onFinal(({ text }) => { S.finals = S.finals ? S.finals + text : String(text || '').replace(/^\s+/, ''); S.partial = ''; renderLive(); });
+    d.onFinal(({ text }) => {
+      text = String(text || '');
+      if (!S.finals) S.finals = text.replace(/^\s+/, '');
+      else S.finals += (/^\s/.test(text) || /\s$/.test(S.finals) ? '' : ' ') + text;
+      S.partial = ''; renderLive();
+    });
     d.onState(({ state, reason }) => {
       S.dictState = state; renderMic();
       if (state === 'listening') S.heard = true;
@@ -1247,7 +1269,7 @@
   function wire() {
     $$('[data-icon]').forEach(el => { el.outerHTML = svg(el.dataset.icon); });
     $$('[data-logo]').forEach(el => { el.outerHTML = LOGO; });
-    $('#btn-settings').innerHTML = svg('gear');
+    $('#btn-settings').innerHTML = svg('adjust');
     $('#send').innerHTML = svg('send');
     $('#m-prev').innerHTML = svg('left');
     $('#m-next').innerHTML = svg('right');
@@ -1312,10 +1334,10 @@
       else if (st.kind === 'settings') closeSheet();
       else if (st.kind === 'cat') saveCat();
     });
-    $('#sheet-cancel').addEventListener('click', () => { if (S.sheet && S.sheet.saving) return; if (S.sheet && S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else closeSheet(); });
+    $('#sheet-cancel').addEventListener('click', () => { if (S.sheet && S.sheet.saving) return; if (S.sheet && S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else cancelSheet(); });
     // Tocar fuera no descarta un gasto a medio revisar (hay que usar Cancelar)
     $('#scrim').addEventListener('click', () => { if (S.sheet && S.sheet.kind !== 'entry') closeSheet(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sheet) { e.preventDefault(); if (S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else closeSheet(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sheet && !S.sheet.saving) { e.preventDefault(); if (S.sheet.kind === 'cat') openSheet({ kind: 'settings' }); else cancelSheet(); } });
     // focus trap básico
     $('#sheet').addEventListener('keydown', e => {
       if (e.key !== 'Tab' || !S.sheet) return;

@@ -248,6 +248,26 @@ const ok = (cond, msg) => { if (cond) console.log('  ✓', msg); else { failures
     ok(await p6.evaluate(() => document.documentElement.lang) === 'es', 'idioma de la página: es');
   }
 
+  console.log('15) Foco y signo');
+  {
+    const c7 = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const p7 = await newPage(c7, { uid: 'f1' });
+    await p7.waitForTimeout(200);
+    await p7.click('#start-zero');
+    await p7.fill('#say', 'taxi 50'); await p7.press('#say', 'Enter');
+    await p7.waitForSelector('#sheet.show'); await p7.waitForTimeout(300);
+    await p7.focus('[data-k="category"][data-v="comida"]'); await p7.keyboard.press('Enter');
+    ok(await p7.evaluate(() => { const a = document.activeElement; return a && a.dataset.k === 'category' && a.dataset.v === 'comida' && a.getAttribute('aria-pressed') === 'true'; }), 'el foco se queda en la categoría elegida');
+    await p7.click('#sheet-ok'); await p7.waitForSelector('#sheet', { state: 'hidden' });
+    await p7.click('#btn-settings'); await p7.waitForSelector('#sheet.show'); await p7.waitForTimeout(300);
+    ok((await p7.locator('label[for="adj-in"] small').innerText()).includes('−'), 'Ajustes muestra el saldo negativo con signo');
+    await p7.click('#sheet-ok'); await p7.waitForSelector('#sheet', { state: 'hidden' });
+    await p7.fill('#say', 'café 12'); await p7.press('#say', 'Enter');
+    await p7.waitForSelector('#sheet.show'); await p7.waitForTimeout(300);
+    await p7.click('#sheet-cancel'); await p7.waitForSelector('#sheet', { state: 'hidden' });
+    ok(await p7.inputValue('#say') === 'café 12', 'cancelar deja la frase en el campo');
+  }
+
   // overflow horizontal
   for (const p of [a, s]) {
     const ov = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

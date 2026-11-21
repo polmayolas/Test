@@ -146,7 +146,7 @@ button:disabled { cursor: default; }
 .live .partial { color: var(--label-3); }
 .typebar {
   margin-top: 16px; width: 100%; display: flex; align-items: center; gap: 8px; background: var(--fill);
-  border-radius: 999px; padding: 2px 2px 2px 16px; min-height: 44px;
+  border-radius: 999px; padding: 2px 2px 2px 16px; min-height: 48px;
 }
 .typebar input {
   flex: 1; min-width: 0; border: 0; background: transparent; padding: 9px 0; font-size: 16px; outline: none;
@@ -154,7 +154,7 @@ button:disabled { cursor: default; }
 .typebar input::placeholder { color: var(--label-3); }
 .typebar:focus-within { box-shadow: 0 0 0 2px var(--accent); }
 .send {
-  width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+  width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
   display: grid; place-items: center; flex: none; transition: opacity .15s;
 }
 .send:disabled { opacity: .3; }
@@ -373,7 +373,7 @@ button.bar-row:active { background: var(--fill); }
 
 /* ajustes */
 .set-sec { margin-bottom: 22px; }
-.set-sec > h4 { margin: 0; padding: 0 4px 6px; font-size: 13px; font-weight: 600; color: var(--label-2); text-transform: uppercase; letter-spacing: 0.03em; }
+.set-sec > h3 { margin: 0; padding: 0 4px 6px; font-size: 13px; font-weight: 600; color: var(--label-2); text-transform: uppercase; letter-spacing: 0.03em; }
 .set-sec > p.foot { margin: 6px 4px 0; font-size: 13px; color: var(--label-2); line-height: 1.4; }
 .set-card { background: var(--card); border-radius: var(--r-md); overflow: hidden; }
 .set-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; min-height: 48px; position: relative; width: 100%; text-align: left; }
@@ -436,6 +436,7 @@ body.sheet-open .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
   .mic svg { width: 32px; height: 32px; }
   .composer { padding: 16px 14px 12px; }
   .examples { display: none; }
+  .quick button { font-size: 15px; gap: 6px; white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
